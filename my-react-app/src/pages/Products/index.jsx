@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Search, Plus, Upload, Pencil, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import BulkImportModal from '../../components/common/BulkImportModal';
 
 // ── Mock data ────────────────────────────────────────────────────────────────
 
@@ -148,50 +149,6 @@ function ProductModal({ initial, onSave, onClose }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
-  );
-}
-
-// ── Bulk import modal ─────────────────────────────────────────────────────────
-
-function BulkImportModal({ onClose }) {
-  const [file, setFile] = useState(null);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">Bulk Import Products</h2>
-        <p className="text-sm text-gray-500 mb-4">
-          Upload a <span className="font-medium">.csv</span> or{' '}
-          <span className="font-medium">.xlsx</span> file. Columns: name, sku, category, status.
-        </p>
-        <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-8 cursor-pointer hover:border-blue-400 transition-colors">
-          <Upload className="h-8 w-8 text-gray-400 mb-2" />
-          <span className="text-sm text-gray-500">
-            {file ? file.name : 'Click to choose a file'}
-          </span>
-          <input
-            type="file"
-            accept=".csv,.xlsx"
-            className="hidden"
-            onChange={(e) => setFile(e.target.files[0] ?? null)}
-          />
-        </label>
-        <div className="flex justify-end gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            disabled={!file}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Import
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -437,7 +394,24 @@ export default function Products() {
         />
       )}
 
-      {showImport && <BulkImportModal onClose={() => setShowImport(false)} />}
+      {showImport && (
+        <BulkImportModal
+          onClose={() => setShowImport(false)}
+          onImport={(rows) =>
+            setProducts((prev) => [
+              ...prev,
+              ...rows.map((r) => ({
+                id: Date.now() + Math.random(),
+                name: r.name,
+                sku: r.sku,
+                category: r.category,
+                status: r.status.charAt(0).toUpperCase() + r.status.slice(1).toLowerCase(),
+                variants: [],
+              })),
+            ])
+          }
+        />
+      )}
     </div>
   );
 }
