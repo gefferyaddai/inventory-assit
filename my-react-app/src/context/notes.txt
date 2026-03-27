@@ -1,1 +1,1 @@
-Notes for src/context
+Finished AuthContext, that allows users to log in, saves this data in localStorage, when you refresh the page, it will check local storgae and loads the user back automatically, then when logged out it will remove the user from stroage.
