@@ -22,10 +22,14 @@ export function AuthProvider({children}) {
         localStorage.removeItem("user");
     };
 
-
-
-
-
-
+    const value = useMemo(() => {
+        return {
+            user,
+            login,
+            logout,
+            isAuthenticated: !! user,
+            role: user?.role || null,
+            };
+        }, [user]);
 
  }
