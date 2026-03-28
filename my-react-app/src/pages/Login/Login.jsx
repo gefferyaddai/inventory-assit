@@ -14,4 +14,13 @@ export default function LoginPage() {
         navigate("/admin/dashboard");
     };
 
+    const handleClerkLogin = () => {
+         login({
+            name: "Cj Obi",
+            email: "Cj@admin.com",
+            role: "clerk",
+        });
+        navigate("/clerk/dashboard");
+    };
+
 }
