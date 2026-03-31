@@ -65,32 +65,35 @@ const DashboardLayout = ({ requiredRole }: Props) => {
         <AppSidebar role={user.role} />
 
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 flex items-center justify-between border-b px-4 bg-card shrink-0">
-            <div className="flex items-center gap-3">
+          <header className="flex h-[72px] shrink-0 items-center justify-between border-b border-slate-200 bg-card pl-6 pr-14">
+            <div className="flex items-center gap-4 pr-2">
               <SidebarTrigger />
-              <h2 className="text-sm font-semibold text-foreground hidden sm:block">
+              <h2 className="text-[17px] font-semibold text-slate-800">
                 {pageTitle}
               </h2>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4 pr-3">
               <NotificationBell />
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center gap-2 h-9 px-2">
-                    <Avatar className="h-7 w-7">
-                      <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                  <Button
+                    variant="ghost"
+                    className="inline-flex h-9 max-w-[180px] items-center gap-2 self-center rounded-full px-2 hover:bg-slate-100"
+                  >
+                    <Avatar className="h-8 w-8 shrink-0">
+                      <AvatarFallback className="bg-[#0f1c3a] text-xs font-semibold text-white">
                         {initials}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-medium text-foreground hidden sm:block">
+                    <span className="hidden truncate leading-none text-[14px] font-semibold text-slate-700 sm:block">
                       {user.name}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
 
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="mr-2 w-44">
                   <DropdownMenuItem asChild>
                     <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
                       <Settings className="h-4 w-4" />
