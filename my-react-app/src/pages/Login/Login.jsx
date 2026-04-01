@@ -74,7 +74,7 @@ export default function LoginPage() {
       });
 
       navigate(role === "admin" ? "/admin/dashboard" : "/clerk/dashboard");
-    } catch (err) {
+    } catch {
       setError("Login failed. Please try again.");
     } finally {
       setIsLoading(false);

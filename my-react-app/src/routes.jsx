@@ -1,47 +1,34 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 
 // ── Lazy page imports ─────────────────────────────────────────────────────────
 
-const LoginPage              = lazy(() => import('./pages/Login/Login.jsx'));
+const LoginPage    = lazy(() => import('@/pages/LoginPage.jsx'));
+const DashboardLayout = lazy(() => import('@/pages/Dashboard/DashboardLayout'));
 
 // Admin pages
-const AdminDashboard         = lazy(() => import('./pages/AdminDashboard/index.jsx'));
-const ProductsPage           = lazy(() => import('./pages/Products/index.jsx'));
-const CategoriesPage         = lazy(() => import('./pages/Categories/index.jsx'));
-const SuppliersPage          = lazy(() => import('./pages/Suppliers/index.jsx'));
-const WarehousesPage         = lazy(() => import('./pages/Warehouses/index.jsx'));
-const PurchaseOrdersPage     = lazy(() => import('./pages/PurchaseOrders/index.jsx'));
-const ReorderSuggestionsPage = lazy(() => import('./pages/ReorderSuggestions/index.jsx'));
-const ReportsPage            = lazy(() => import('./pages/Reports/index.jsx'));
-const UserManagementPage     = lazy(() => import('./pages/UserManagement/index.jsx'));
+const AdminDashboard         = lazy(() => import('@/pages/admin/AdminDashboard.jsx'));
+const ProductsPage           = lazy(() => import('@/pages/admin/ProductsPage.jsx'));
+const CategoriesPage         = lazy(() => import('@/pages/admin/CategoriesPage.jsx'));
+const SuppliersPage          = lazy(() => import('@/pages/admin/SuppliersPage.jsx'));
+const WarehousesPage         = lazy(() => import('@/pages/admin/WarehousesPage.jsx'));
+const PurchaseOrdersPage     = lazy(() => import('@/pages/admin/PurchaseOrdersPage.jsx'));
+const ReorderSuggestionsPage = lazy(() => import('@/pages/admin/ReorderSuggestionsPage.jsx'));
+const ReportsPage            = lazy(() => import('@/pages/admin/ReportsPage.jsx'));
+const UserManagementPage     = lazy(() => import('@/pages/admin/UserManagementPage.jsx'));
 
 // Clerk pages
-const ClerkDashboard         = lazy(() => import('./pages/ClerkDashboard/index.jsx'));
-const ClerkInventoryPage     = lazy(() => import('./pages/ClerkInventory/index.jsx'));
-const RecordTransactionPage  = lazy(() => import('./pages/RecordTransaction/index.jsx'));
-const TransactionHistoryPage = lazy(() => import('./pages/TransactionHistory/index.jsx'));
+const ClerkDashboard         = lazy(() => import('@/pages/clerk/ClerkDashboard.jsx'));
+const ClerkInventoryPage     = lazy(() => import('@/pages/clerk/ClerkInventoryPage.jsx'));
+const RecordTransactionPage  = lazy(() => import('@/pages/clerk/RecordTransactionPage.jsx'));
+const TransactionHistoryPage = lazy(() => import('@/pages/clerk/TransactionHistoryPage.jsx'));
 
 // Shared pages
-const ProfilePage            = lazy(() => import('./pages/Profile/index.jsx'));
-const NotFound               = lazy(() => import('./pages/NotFound/index.jsx'));
+const ProfilePage = lazy(() => import('@/pages/ProfilePage.jsx'));
+const NotFound    = lazy(() => import('@/pages/NotFound.jsx'));
 
 // ── Guards ────────────────────────────────────────────────────────────────────
-
-function RequireAuth({ children, role }) {
-  const { user } = useAuth();
-  const location = useLocation();
-
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-  if (role && user.role !== role) {
-    // Wrong role — redirect to their own dashboard
-    return <Navigate to={user.role === 'admin' ? '/admin/dashboard' : '/clerk/dashboard'} replace />;
-  }
-  return children;
-}
 
 function RedirectIfAuthed({ children }) {
   const { user } = useAuth();
@@ -51,7 +38,14 @@ function RedirectIfAuthed({ children }) {
   return children;
 }
 
-// ── Fallback ──────────────────────────────────────────────────────────────────
+function RequireAuth({ children }) {
+  const { user } = useAuth();
+  const location = useLocation();
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  return children;
+}
+
+// ── Suspense wrapper ──────────────────────────────────────────────────────────
 
 function PageLoader() {
   return (
@@ -78,60 +72,33 @@ export const routes = [
     ),
   },
 
-  // Admin
+  // Admin — DashboardLayout handles auth + sidebar/header
   {
-    path: '/admin/dashboard',
-    element: <RequireAuth role="admin"><S><AdminDashboard /></S></RequireAuth>,
-  },
-  {
-    path: '/admin/products',
-    element: <RequireAuth role="admin"><S><ProductsPage /></S></RequireAuth>,
-  },
-  {
-    path: '/admin/categories',
-    element: <RequireAuth role="admin"><S><CategoriesPage /></S></RequireAuth>,
-  },
-  {
-    path: '/admin/suppliers',
-    element: <RequireAuth role="admin"><S><SuppliersPage /></S></RequireAuth>,
-  },
-  {
-    path: '/admin/warehouses',
-    element: <RequireAuth role="admin"><S><WarehousesPage /></S></RequireAuth>,
-  },
-  {
-    path: '/admin/orders',
-    element: <RequireAuth role="admin"><S><PurchaseOrdersPage /></S></RequireAuth>,
-  },
-  {
-    path: '/admin/reorders',
-    element: <RequireAuth role="admin"><S><ReorderSuggestionsPage /></S></RequireAuth>,
-  },
-  {
-    path: '/admin/reports',
-    element: <RequireAuth role="admin"><S><ReportsPage /></S></RequireAuth>,
-  },
-  {
-    path: '/admin/users',
-    element: <RequireAuth role="admin"><S><UserManagementPage /></S></RequireAuth>,
+    path: '/admin',
+    element: <S><DashboardLayout requiredRole="admin" /></S>,
+    children: [
+      { path: 'dashboard',  element: <S><AdminDashboard /></S> },
+      { path: 'products',   element: <S><ProductsPage /></S> },
+      { path: 'categories', element: <S><CategoriesPage /></S> },
+      { path: 'suppliers',  element: <S><SuppliersPage /></S> },
+      { path: 'warehouses', element: <S><WarehousesPage /></S> },
+      { path: 'orders',     element: <S><PurchaseOrdersPage /></S> },
+      { path: 'reorders',   element: <S><ReorderSuggestionsPage /></S> },
+      { path: 'reports',    element: <S><ReportsPage /></S> },
+      { path: 'users',      element: <S><UserManagementPage /></S> },
+    ],
   },
 
-  // Clerk
+  // Clerk — DashboardLayout handles auth + sidebar/header
   {
-    path: '/clerk/dashboard',
-    element: <RequireAuth role="clerk"><S><ClerkDashboard /></S></RequireAuth>,
-  },
-  {
-    path: '/clerk/inventory',
-    element: <RequireAuth role="clerk"><S><ClerkInventoryPage /></S></RequireAuth>,
-  },
-  {
-    path: '/clerk/transaction',
-    element: <RequireAuth role="clerk"><S><RecordTransactionPage /></S></RequireAuth>,
-  },
-  {
-    path: '/clerk/history',
-    element: <RequireAuth role="clerk"><S><TransactionHistoryPage /></S></RequireAuth>,
+    path: '/clerk',
+    element: <S><DashboardLayout requiredRole="clerk" /></S>,
+    children: [
+      { path: 'dashboard',        element: <S><ClerkDashboard /></S> },
+      { path: 'inventory',        element: <S><ClerkInventoryPage /></S> },
+      { path: 'transactions/new', element: <S><RecordTransactionPage /></S> },
+      { path: 'transactions',     element: <S><TransactionHistoryPage /></S> },
+    ],
   },
 
   // Shared
