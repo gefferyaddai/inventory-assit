@@ -13,8 +13,8 @@ const INITIAL_PRODUCTS = [
     category: 'Peripherals',
     status: 'Active',
     variants: [
-      { id: 'v1', label: 'Black', isActive: true },
-      { id: 'v2', label: 'White', isActive: true },
+      { id: 'v1', size: 'Standard', color: 'Black', price: 29.99, qty: 40, isActive: true },
+      { id: 'v2', size: 'Standard', color: 'White', price: 29.99, qty: 25, isActive: true },
     ],
   },
   {
@@ -24,8 +24,8 @@ const INITIAL_PRODUCTS = [
     category: 'Peripherals',
     status: 'Active',
     variants: [
-      { id: 'v3', label: 'TKL Brown Switch', isActive: true },
-      { id: 'v4', label: 'Full Red Switch',  isActive: false },
+      { id: 'v3', size: 'TKL',  color: 'Black', price: 89.99, qty: 15, isActive: true },
+      { id: 'v4', size: 'Full', color: 'Black', price: 99.99, qty: 0,  isActive: false },
     ],
   },
   {
@@ -35,7 +35,7 @@ const INITIAL_PRODUCTS = [
     category: 'Accessories',
     status: 'Inactive',
     variants: [
-      { id: 'v5', label: '7-Port', isActive: false },
+      { id: 'v5', size: '7-Port', color: 'Silver', price: 49.99, qty: 8, isActive: false },
     ],
   },
   {
@@ -160,7 +160,7 @@ function VariantRow({ variants, onToggleVariant }) {
   if (variants.length === 0) {
     return (
       <tr>
-        <td colSpan={5} className="px-10 py-2 text-xs text-gray-400 italic bg-gray-50">
+        <td colSpan={6} className="px-10 py-2 text-xs text-gray-400 italic bg-gray-50">
           No variants
         </td>
       </tr>
@@ -168,22 +168,40 @@ function VariantRow({ variants, onToggleVariant }) {
   }
   return (
     <tr className="bg-gray-50">
-      <td colSpan={5} className="px-10 py-2">
-        <div className="flex flex-wrap gap-2">
-          {variants.map((v) => (
-            <button
-              key={v.id}
-              onClick={() => onToggleVariant(v.id)}
-              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                v.isActive
-                  ? 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
-                  : 'bg-gray-100 border-gray-300 text-gray-400 hover:bg-gray-200'
-              }`}
-            >
-              {v.label} · {v.isActive ? 'Active' : 'Inactive'}
-            </button>
-          ))}
-        </div>
+      <td colSpan={6} className="px-10 py-3">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-gray-500">
+              <th className="text-left py-1 font-medium">Size</th>
+              <th className="text-left py-1 font-medium">Color</th>
+              <th className="text-left py-1 font-medium">Price</th>
+              <th className="text-left py-1 font-medium">Qty</th>
+              <th className="text-left py-1 font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {variants.map((v) => (
+              <tr key={v.id}>
+                <td className="py-1 text-gray-700">{v.size}</td>
+                <td className="py-1 text-gray-700">{v.color}</td>
+                <td className="py-1 text-gray-700">${v.price.toFixed(2)}</td>
+                <td className="py-1 text-gray-700">{v.qty}</td>
+                <td className="py-1">
+                  <button
+                    onClick={() => onToggleVariant(v.id)}
+                    className={`px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
+                      v.isActive
+                        ? 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
+                        : 'bg-gray-100 border-gray-300 text-gray-400 hover:bg-gray-200'
+                    }`}
+                  >
+                    {v.isActive ? 'Active' : 'Inactive'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </td>
     </tr>
   );
