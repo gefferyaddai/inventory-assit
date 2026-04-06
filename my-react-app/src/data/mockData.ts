@@ -85,12 +85,27 @@ export const products = [
   },
 ];
 
+// ── Suppliers ─────────────────────────────────────────────────────────────────
+
+export const suppliers = [
+  { id: "sup-1", companyName: "TechSupply Co.",  contactName: "Alan Park",     email: "alan@techsupply.com",   phone: "(403) 555-0101", address: "200 Tech Ave, Calgary, AB",     leadTimeDays: 5  },
+  { id: "sup-2", companyName: "Office Depot",    contactName: "Sara Mills",    email: "sara@officedepot.com",  phone: "(403) 555-0202", address: "85 Office Blvd, Calgary, AB",   leadTimeDays: 3  },
+  { id: "sup-3", companyName: "NetGear Direct",  contactName: "Kevin Lam",     email: "klam@netgear.com",      phone: "(780) 555-0303", address: "10 Network Rd, Edmonton, AB",   leadTimeDays: 7  },
+];
+
+// Supplier → product mapping (product IDs)
+export const supplierProducts: Record<string, string[]> = {
+  "sup-1": ["P001", "P005", "P006", "P010"],
+  "sup-2": ["P004", "P009", "P011"],
+  "sup-3": ["P007", "P008"],
+};
+
 // ── Warehouses ────────────────────────────────────────────────────────────────
 
 export const warehouses = [
-  { id: "W1", name: "Main Warehouse",  location: "Calgary, AB" },
-  { id: "W2", name: "East Wing",       location: "Edmonton, AB" },
-  { id: "W3", name: "Storage Annex",   location: "Red Deer, AB" },
+  { id: "W1", name: "Main Warehouse", location: "Calgary, AB",   address: "100 Logistics Way, Calgary, AB T2P 1G5",  capacity: 5000, managerName: "Robert Kim",    assignedAdmins: ["Kevin"] },
+  { id: "W2", name: "East Wing",      location: "Edmonton, AB",  address: "500 Commerce Dr, Edmonton, AB T5J 2Z1",   capacity: 2500, managerName: "Patricia Gomez", assignedAdmins: ["Kevin"] },
+  { id: "W3", name: "Storage Annex",  location: "Red Deer, AB",  address: "300 Industrial Pkwy, Red Deer, AB T4N 3X5", capacity: 1500, managerName: "Steven Wright", assignedAdmins: [] },
 ];
 
 // ── Warehouse Stocks ──────────────────────────────────────────────────────────
@@ -131,10 +146,10 @@ export const transactions = [
 // ── Purchase Orders ───────────────────────────────────────────────────────────
 
 export const purchaseOrders = [
-  { id: "PO-001", supplierName: "TechSupply Co.",  orderDate: "2026-04-01", expectedDelivery: "2026-04-10", status: "Pending",   totalAmount: 2400.00 },
-  { id: "PO-002", supplierName: "Office Depot",    orderDate: "2026-04-02", expectedDelivery: "2026-04-09", status: "Pending",   totalAmount: 850.00  },
-  { id: "PO-003", supplierName: "NetGear Direct",  orderDate: "2026-03-28", expectedDelivery: "2026-04-05", status: "Received",  totalAmount: 1200.00 },
-  { id: "PO-004", supplierName: "TechSupply Co.",  orderDate: "2026-03-20", expectedDelivery: "2026-03-30", status: "Received",  totalAmount: 3100.00 },
+  { id: "PO-001", supplierId: "sup-1", supplierName: "TechSupply Co.",  orderDate: "2026-04-01", expectedDelivery: "2026-04-10", status: "Pending",   totalAmount: 2400.00 },
+  { id: "PO-002", supplierId: "sup-2", supplierName: "Office Depot",    orderDate: "2026-04-02", expectedDelivery: "2026-04-09", status: "Pending",   totalAmount: 850.00  },
+  { id: "PO-003", supplierId: "sup-3", supplierName: "NetGear Direct",  orderDate: "2026-03-28", expectedDelivery: "2026-04-05", status: "Received",  totalAmount: 1200.00 },
+  { id: "PO-004", supplierId: "sup-1", supplierName: "TechSupply Co.",  orderDate: "2026-03-20", expectedDelivery: "2026-03-30", status: "Received",  totalAmount: 3100.00 },
 ];
 
 // ── Reorder Suggestions ───────────────────────────────────────────────────────
