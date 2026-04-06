@@ -209,3 +209,21 @@ export const reorderSuggestions = [
   { id: "RS-005", productName: "Network Switch 8-Port",warehouseName: "Storage Annex",  suggestedQty: 8,  preferredSupplier: "NetGear Direct",  generatedAt: "2026-04-04T08:00:00Z", status: "Dismissed" },
   { id: "RS-006", productName: "Laptop Stand",         warehouseName: "East Wing",      suggestedQty: 20, preferredSupplier: "Office Depot",    generatedAt: "2026-04-04T08:00:00Z", status: "Pending"   },
 ];
+
+// ── Supplier Performance ──────────────────────────────────────────────────────
+
+export const supplierPerformance = [
+  { supplierId: "sup-1", supplierName: "TechSupply Co.", avgLeadTime: 4.8, totalOrders: 12, fulfillmentRate: 97.5 },
+  { supplierId: "sup-2", supplierName: "Office Depot",   avgLeadTime: 2.9, totalOrders: 8,  fulfillmentRate: 99.1 },
+  { supplierId: "sup-3", supplierName: "NetGear Direct", avgLeadTime: 6.5, totalOrders: 5,  fulfillmentRate: 93.0 },
+];
+
+// ── Sales Trend Data (weekly) ─────────────────────────────────────────────────
+
+export const salesTrendData = [
+  { week: "Mar W1", sales: 18, receipts: 12, adjustments: 2 },
+  { week: "Mar W2", sales: 24, receipts: 8,  adjustments: 3 },
+  { week: "Mar W3", sales: 15, receipts: 20, adjustments: 1 },
+  { week: "Mar W4", sales: 30, receipts: 15, adjustments: 4 },
+  { week: "Apr W1", sales: 12, receipts: 35, adjustments: 2 },
+];
