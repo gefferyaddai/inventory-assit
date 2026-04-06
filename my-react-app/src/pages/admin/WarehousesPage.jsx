@@ -88,7 +88,7 @@ export default function WarehousesPage() {
         </div>
 
         {/* Stock levels */}
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="px-4 py-3 border-b border-gray-100">
             <h4 className="text-sm font-semibold text-gray-800">Stock Levels</h4>
           </div>
@@ -141,7 +141,7 @@ export default function WarehousesPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">

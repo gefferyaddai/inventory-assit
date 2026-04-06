@@ -84,7 +84,7 @@ export default function SuppliersPage() {
         </div>
 
         {/* Products Supplied */}
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="px-4 py-3 border-b border-gray-100">
             <h4 className="text-sm font-semibold text-gray-800">Products Supplied</h4>
           </div>
@@ -111,7 +111,7 @@ export default function SuppliersPage() {
         </div>
 
         {/* Purchase Orders */}
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="px-4 py-3 border-b border-gray-100">
             <h4 className="text-sm font-semibold text-gray-800">Purchase Orders</h4>
           </div>
@@ -162,7 +162,7 @@ export default function SuppliersPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">

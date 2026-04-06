@@ -210,6 +210,16 @@ export const reorderSuggestions = [
   { id: "RS-006", productName: "Laptop Stand",         warehouseName: "East Wing",      suggestedQty: 20, preferredSupplier: "Office Depot",    generatedAt: "2026-04-04T08:00:00Z", status: "Pending"   },
 ];
 
+// ── App Users ─────────────────────────────────────────────────────────────────
+
+export const appUsers = [
+  { id: "u-1", firstName: "Kevin",   lastName: "Admin",   email: "kevin@admin.com", role: "admin",  department: "Operations", accessLevel: "Full",        dateCreated: "2025-09-01", status: "Active",   phone: "(403) 555-1001" },
+  { id: "u-2", firstName: "Cj",      lastName: "Obi",     email: "cj@clerk.com",    role: "clerk",  assignedShift: "Morning", hireDate: "2025-10-15",     dateCreated: "2025-10-15", status: "Active",   phone: "(403) 555-1002" },
+  { id: "u-3", firstName: "Maria",   lastName: "Santos",  email: "m.santos@inv.com",role: "clerk",  assignedShift: "Evening", hireDate: "2026-01-10",     dateCreated: "2026-01-10", status: "Active",   phone: "(403) 555-1003" },
+  { id: "u-4", firstName: "James",   lastName: "Lee",     email: "j.lee@inv.com",   role: "clerk",  assignedShift: "Night",   hireDate: "2026-02-05",     dateCreated: "2026-02-05", status: "Active",   phone: "(403) 555-1004" },
+  { id: "u-5", firstName: "Rebecca", lastName: "Turner",  email: "r.turner@inv.com",role: "clerk",  assignedShift: "Morning", hireDate: "2026-03-22",     dateCreated: "2026-03-22", status: "Inactive", phone: "(403) 555-1005" },
+];
+
 // ── Supplier Performance ──────────────────────────────────────────────────────
 
 export const supplierPerformance = [
