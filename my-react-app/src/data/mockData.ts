@@ -1,17 +1,88 @@
+// ── Categories ────────────────────────────────────────────────────────────────
+
+export const categories = [
+  { id: "C1", name: "Electronics"  },
+  { id: "C2", name: "Peripherals"  },
+  { id: "C3", name: "Furniture"    },
+  { id: "C4", name: "Networking"   },
+  { id: "C5", name: "Accessories"  },
+];
+
 // ── Products ──────────────────────────────────────────────────────────────────
 
 export const products = [
-  { id: "P001", sku: "WM-001", name: "Wireless Mouse",       category: "Peripherals",  unitPrice: 29.99,  costPrice: 14.00, reorderPoint: 20, status: "Active" },
-  { id: "P002", sku: "UC-002", name: "USB-C Hub",            category: "Peripherals",  unitPrice: 49.99,  costPrice: 22.00, reorderPoint: 15, status: "Active" },
-  { id: "P003", sku: "MK-003", name: "Mechanical Keyboard",  category: "Peripherals",  unitPrice: 119.99, costPrice: 58.00, reorderPoint: 10, status: "Active" },
-  { id: "P004", sku: "MS-004", name: "Monitor Stand",        category: "Furniture",    unitPrice: 79.99,  costPrice: 35.00, reorderPoint: 8,  status: "Active" },
-  { id: "P005", sku: "WC-005", name: "Webcam HD",            category: "Electronics",  unitPrice: 89.99,  costPrice: 40.00, reorderPoint: 12, status: "Active" },
-  { id: "P006", sku: "HS-006", name: "Headset Pro",          category: "Electronics",  unitPrice: 149.99, costPrice: 70.00, reorderPoint: 10, status: "Active" },
-  { id: "P007", sku: "ET-007", name: "Ethernet Cable 5m",    category: "Networking",   unitPrice: 12.99,  costPrice: 4.00,  reorderPoint: 50, status: "Active" },
-  { id: "P008", sku: "SW-008", name: "Network Switch 8-Port",category: "Networking",   unitPrice: 59.99,  costPrice: 28.00, reorderPoint: 5,  status: "Active" },
-  { id: "P009", sku: "LP-009", name: "Laptop Stand",         category: "Accessories",  unitPrice: 39.99,  costPrice: 16.00, reorderPoint: 15, status: "Active" },
-  { id: "P010", sku: "MW-010", name: "Monitor 27\" 4K",      category: "Electronics",  unitPrice: 499.99, costPrice: 280.00,reorderPoint: 5,  status: "Active" },
-  { id: "P011", sku: "OC-011", name: "Office Chair",         category: "Furniture",    unitPrice: 299.99, costPrice: 150.00,reorderPoint: 3,  status: "Inactive" },
+  {
+    id: "P001", sku: "WM-001", name: "Wireless Mouse", description: "Ergonomic wireless mouse with long battery life.",
+    category: "Peripherals", unitPrice: 29.99, costPrice: 14.00, reorderPoint: 20, maxStockLevel: 100,
+    unitOfMeasure: "Each", expirationDate: null, status: "Active",
+    variants: [
+      { id: "V001a", variantSku: "WM-001-BLK", size: "Standard", color: "Black", unitPrice: 29.99, costPrice: 14.00, status: "Active" },
+      { id: "V001b", variantSku: "WM-001-WHT", size: "Standard", color: "White", unitPrice: 29.99, costPrice: 14.00, status: "Active" },
+    ],
+  },
+  {
+    id: "P002", sku: "UC-002", name: "USB-C Hub", description: "7-in-1 USB-C hub with HDMI and PD charging.",
+    category: "Peripherals", unitPrice: 49.99, costPrice: 22.00, reorderPoint: 15, maxStockLevel: 80,
+    unitOfMeasure: "Each", expirationDate: null, status: "Active",
+    variants: [],
+  },
+  {
+    id: "P003", sku: "MK-003", name: "Mechanical Keyboard", description: "TKL mechanical keyboard with blue switches.",
+    category: "Peripherals", unitPrice: 119.99, costPrice: 58.00, reorderPoint: 10, maxStockLevel: 50,
+    unitOfMeasure: "Each", expirationDate: null, status: "Active",
+    variants: [
+      { id: "V003a", variantSku: "MK-003-BLU", size: "TKL", color: "Black", unitPrice: 119.99, costPrice: 58.00, status: "Active" },
+      { id: "V003b", variantSku: "MK-003-RED", size: "Full", color: "White", unitPrice: 129.99, costPrice: 62.00, status: "Active" },
+    ],
+  },
+  {
+    id: "P004", sku: "MS-004", name: "Monitor Stand", description: "Adjustable aluminum monitor riser stand.",
+    category: "Furniture", unitPrice: 79.99, costPrice: 35.00, reorderPoint: 8, maxStockLevel: 40,
+    unitOfMeasure: "Each", expirationDate: null, status: "Active",
+    variants: [],
+  },
+  {
+    id: "P005", sku: "WC-005", name: "Webcam HD", description: "1080p HD webcam with built-in microphone.",
+    category: "Electronics", unitPrice: 89.99, costPrice: 40.00, reorderPoint: 12, maxStockLevel: 60,
+    unitOfMeasure: "Each", expirationDate: null, status: "Active",
+    variants: [],
+  },
+  {
+    id: "P006", sku: "HS-006", name: "Headset Pro", description: "Noise-cancelling over-ear headset for office use.",
+    category: "Electronics", unitPrice: 149.99, costPrice: 70.00, reorderPoint: 10, maxStockLevel: 50,
+    unitOfMeasure: "Each", expirationDate: null, status: "Active",
+    variants: [],
+  },
+  {
+    id: "P007", sku: "ET-007", name: "Ethernet Cable 5m", description: "Cat6 ethernet patch cable, 5 metres.",
+    category: "Networking", unitPrice: 12.99, costPrice: 4.00, reorderPoint: 50, maxStockLevel: 300,
+    unitOfMeasure: "Each", expirationDate: null, status: "Active",
+    variants: [],
+  },
+  {
+    id: "P008", sku: "SW-008", name: "Network Switch 8-Port", description: "Unmanaged Gigabit 8-port network switch.",
+    category: "Networking", unitPrice: 59.99, costPrice: 28.00, reorderPoint: 5, maxStockLevel: 30,
+    unitOfMeasure: "Each", expirationDate: null, status: "Active",
+    variants: [],
+  },
+  {
+    id: "P009", sku: "LP-009", name: "Laptop Stand", description: "Portable folding laptop stand, aluminum alloy.",
+    category: "Accessories", unitPrice: 39.99, costPrice: 16.00, reorderPoint: 15, maxStockLevel: 80,
+    unitOfMeasure: "Each", expirationDate: null, status: "Active",
+    variants: [],
+  },
+  {
+    id: "P010", sku: "MW-010", name: 'Monitor 27" 4K', description: '27-inch 4K UHD IPS monitor, 60Hz.',
+    category: "Electronics", unitPrice: 499.99, costPrice: 280.00, reorderPoint: 5, maxStockLevel: 20,
+    unitOfMeasure: "Each", expirationDate: null, status: "Active",
+    variants: [],
+  },
+  {
+    id: "P011", sku: "OC-011", name: "Office Chair", description: "Ergonomic mesh office chair with lumbar support.",
+    category: "Furniture", unitPrice: 299.99, costPrice: 150.00, reorderPoint: 3, maxStockLevel: 15,
+    unitOfMeasure: "Each", expirationDate: null, status: "Inactive",
+    variants: [],
+  },
 ];
 
 // ── Warehouses ────────────────────────────────────────────────────────────────
