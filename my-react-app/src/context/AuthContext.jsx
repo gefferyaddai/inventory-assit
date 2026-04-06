@@ -2,8 +2,8 @@ import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const MOCK_USERS = [
-  { id: 1, name: 'Alice Admin', email: 'admin@example.com', password: 'admin123', role: 'admin', isActive: true },
-  { id: 2, name: 'Charlie Clerk', email: 'clerk@example.com', password: 'clerk123', role: 'clerk', isActive: true },
+  { id: 1, name: 'Kevin', email: 'kevin@admin.com', password: 'admin123', role: 'admin', isActive: true },
+  { id: 2, name: 'Cj Obi', email: 'cj@clerk.com', password: 'clerk123', role: 'clerk', isActive: true },
 ];
 
 const STORAGE_KEY = 'auth_user';

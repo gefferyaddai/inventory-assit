@@ -61,10 +61,9 @@ const DashboardLayout = ({ requiredRole }: Props) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-[#f3f5f9]">
-        <AppSidebar role={user.role} />
+      <AppSidebar role={user.role} />
 
-        <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 bg-[#f3f5f9]">
           <header className="flex h-[72px] shrink-0 items-center justify-between border-b border-slate-200 bg-card pl-6 pr-14">
             <div className="flex items-center gap-4 pr-2">
               <SidebarTrigger />
@@ -119,7 +118,6 @@ const DashboardLayout = ({ requiredRole }: Props) => {
             <Outlet />
           </main>
         </div>
-      </div>
     </SidebarProvider>
   );
 };

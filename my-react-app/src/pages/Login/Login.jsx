@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import logoVar1Big from "../../assets/images/logoVar1Big.png";
 import "./Login.css";
 
 export default function LoginPage() {
@@ -67,11 +68,7 @@ export default function LoginPage() {
       const userData = validUsers[role];
 
       // Login successful
-      login({
-        name: userData.name,
-        email: userData.email,
-        role: userData.role,
-      });
+      login(userData.email, userPassword);
 
       navigate(role === "admin" ? "/admin/dashboard" : "/clerk/dashboard");
     } catch {
@@ -85,13 +82,11 @@ export default function LoginPage() {
     <div className="login-shell">
       <div className="login-card">
         <div className="login-card-header">
-          <div className="login-logo" aria-hidden="true">
-            IA
-          </div>
-          <div className="login-title-group">
+          <div className="login-brand">
+            <img src={logoVar1Big} alt="Inventory Assist logo" className="login-logo" />
             <h1 className="login-title">Inventory Assist</h1>
-            <p className="login-subtitle">Inventory made simple</p>
           </div>
+          <p className="login-subtitle">Inventory made simple</p>
         </div>
 
         <div className="login-card-content">

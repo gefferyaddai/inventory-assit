@@ -11,6 +11,8 @@ import {
   Users,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
+import logoVar1 from "@/assets/images/logoVar1.png";
+import logoVar1Big from "@/assets/images/logoVar1Big.png";
 import { NavLink } from "@/components/NavLink";
 import { Badge } from "@/components/ui/badge";
 import { reorderSuggestions } from "@/data/mockData";
@@ -90,9 +92,11 @@ export function AppSidebar({ role }: { role: UserRole } & AppSidebarProps) {
         }
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-white text-xs font-bold tracking-[0.2em] text-[#031f4b]">
-            IA
-          </div>
+          <img
+            src={collapsed ? logoVar1 : logoVar1Big}
+            alt="Inventory Assist"
+            className={collapsed ? "h-8 w-8 object-contain" : "h-9 w-9 object-contain"}
+          />
           {!collapsed && (
             <span className="text-[20px] font-semibold tracking-tight text-white">
               Inventory Assist
@@ -101,7 +105,7 @@ export function AppSidebar({ role }: { role: UserRole } & AppSidebarProps) {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="bg-[#031f4b] px-3 py-5">
+      <SidebarContent className={collapsed ? "bg-[#031f4b] py-5" : "bg-[#031f4b] px-3 py-5"}>
         <SidebarGroup className="p-0">
           <SidebarGroupLabel className="px-3 pb-3 text-xs uppercase tracking-[0.2em] text-[#7f94b5]">
             {!collapsed && "Menu"}
@@ -126,7 +130,7 @@ export function AppSidebar({ role }: { role: UserRole } & AppSidebarProps) {
                       }
                       activeClassName="bg-[#16345d] text-[#1ea0e6]"
                     >
-                      <item.icon className="h-5 w-5 shrink-0" />
+                      <item.icon className={collapsed ? "h-[22px] w-[22px] shrink-0" : "h-5 w-5 shrink-0"} />
 
                       {!collapsed && (
                         <span className="flex flex-1 items-center justify-between gap-2">
