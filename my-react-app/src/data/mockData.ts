@@ -202,8 +202,10 @@ export function getAllVariants() {
 // ── Reorder Suggestions ───────────────────────────────────────────────────────
 
 export const reorderSuggestions = [
-  { id: "RS-001", productName: "Wireless Mouse",      warehouseName: "Main Warehouse", suggestedQty: 30, status: "Pending"  },
-  { id: "RS-002", productName: "Mechanical Keyboard", warehouseName: "East Wing",      suggestedQty: 15, status: "Pending"  },
-  { id: "RS-003", productName: "Monitor 27\" 4K",     warehouseName: "Main Warehouse", suggestedQty: 10, status: "Pending"  },
-  { id: "RS-004", productName: "Headset Pro",         warehouseName: "Storage Annex",  suggestedQty: 12, status: "Approved" },
+  { id: "RS-001", productName: "Wireless Mouse",       warehouseName: "Main Warehouse", suggestedQty: 30, preferredSupplier: "TechSupply Co.",  generatedAt: "2026-04-06T08:00:00Z", status: "Pending"   },
+  { id: "RS-002", productName: "Mechanical Keyboard",  warehouseName: "East Wing",      suggestedQty: 15, preferredSupplier: "TechSupply Co.",  generatedAt: "2026-04-06T08:00:00Z", status: "Pending"   },
+  { id: "RS-003", productName: 'Monitor 27" 4K',       warehouseName: "Main Warehouse", suggestedQty: 10, preferredSupplier: "TechSupply Co.",  generatedAt: "2026-04-05T08:00:00Z", status: "Pending"   },
+  { id: "RS-004", productName: "Headset Pro",          warehouseName: "Storage Annex",  suggestedQty: 12, preferredSupplier: "TechSupply Co.",  generatedAt: "2026-04-05T08:00:00Z", status: "Converted" },
+  { id: "RS-005", productName: "Network Switch 8-Port",warehouseName: "Storage Annex",  suggestedQty: 8,  preferredSupplier: "NetGear Direct",  generatedAt: "2026-04-04T08:00:00Z", status: "Dismissed" },
+  { id: "RS-006", productName: "Laptop Stand",         warehouseName: "East Wing",      suggestedQty: 20, preferredSupplier: "Office Depot",    generatedAt: "2026-04-04T08:00:00Z", status: "Pending"   },
 ];
