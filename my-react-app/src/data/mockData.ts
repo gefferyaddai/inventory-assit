@@ -146,11 +146,58 @@ export const transactions = [
 // ── Purchase Orders ───────────────────────────────────────────────────────────
 
 export const purchaseOrders = [
-  { id: "PO-001", supplierId: "sup-1", supplierName: "TechSupply Co.",  orderDate: "2026-04-01", expectedDelivery: "2026-04-10", status: "Pending",   totalAmount: 2400.00 },
-  { id: "PO-002", supplierId: "sup-2", supplierName: "Office Depot",    orderDate: "2026-04-02", expectedDelivery: "2026-04-09", status: "Pending",   totalAmount: 850.00  },
-  { id: "PO-003", supplierId: "sup-3", supplierName: "NetGear Direct",  orderDate: "2026-03-28", expectedDelivery: "2026-04-05", status: "Received",  totalAmount: 1200.00 },
-  { id: "PO-004", supplierId: "sup-1", supplierName: "TechSupply Co.",  orderDate: "2026-03-20", expectedDelivery: "2026-03-30", status: "Received",  totalAmount: 3100.00 },
+  {
+    id: "PO-001", supplierId: "sup-1", supplierName: "TechSupply Co.",
+    orderDate: "2026-04-01", expectedDelivery: "2026-04-10", status: "Pending", totalAmount: 2400.00,
+    items: [
+      { productVariantId: "V001a", variantSku: "WM-001-BLK", productName: "Wireless Mouse (Black)",  quantity: 50, unitCost: 14.00, subtotal: 700.00  },
+      { productVariantId: "PV005", variantSku: "WC-005",     productName: "Webcam HD",              quantity: 25, unitCost: 40.00, subtotal: 1000.00 },
+      { productVariantId: "PV010", variantSku: "MW-010",     productName: 'Monitor 27" 4K',         quantity: 5,  unitCost: 140.00, subtotal: 700.00 },
+    ],
+  },
+  {
+    id: "PO-002", supplierId: "sup-2", supplierName: "Office Depot",
+    orderDate: "2026-04-02", expectedDelivery: "2026-04-09", status: "Approved", totalAmount: 850.00,
+    items: [
+      { productVariantId: "PV004", variantSku: "MS-004", productName: "Monitor Stand", quantity: 10, unitCost: 35.00, subtotal: 350.00 },
+      { productVariantId: "PV009", variantSku: "LP-009", productName: "Laptop Stand",  quantity: 25, unitCost: 20.00, subtotal: 500.00 },
+    ],
+  },
+  {
+    id: "PO-003", supplierId: "sup-3", supplierName: "NetGear Direct",
+    orderDate: "2026-03-28", expectedDelivery: "2026-04-05", status: "Delivered", totalAmount: 1200.00,
+    items: [
+      { productVariantId: "PV007", variantSku: "ET-007", productName: "Ethernet Cable 5m",     quantity: 150, unitCost: 4.00,  subtotal: 600.00 },
+      { productVariantId: "PV008", variantSku: "SW-008", productName: "Network Switch 8-Port", quantity: 20,  unitCost: 30.00, subtotal: 600.00 },
+    ],
+  },
+  {
+    id: "PO-004", supplierId: "sup-1", supplierName: "TechSupply Co.",
+    orderDate: "2026-03-20", expectedDelivery: "2026-03-30", status: "Delivered", totalAmount: 3100.00,
+    items: [
+      { productVariantId: "PV006", variantSku: "HS-006",     productName: "Headset Pro",        quantity: 20, unitCost: 70.00,  subtotal: 1400.00 },
+      { productVariantId: "PV010", variantSku: "MW-010",     productName: 'Monitor 27" 4K',     quantity: 5,  unitCost: 280.00, subtotal: 1400.00 },
+      { productVariantId: "V001b", variantSku: "WM-001-WHT", productName: "Wireless Mouse (White)", quantity: 10, unitCost: 14.00, subtotal: 140.00 },
+      { productVariantId: "PV005", variantSku: "WC-005",     productName: "Webcam HD",          quantity: 10, unitCost: 16.00, subtotal: 160.00  },
+    ],
+  },
 ];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+export function getAllVariants() {
+  const result: { id: string; variantSku: string; productName: string; color: string }[] = [];
+  for (const p of products) {
+    if (p.variants.length > 0) {
+      for (const v of p.variants) {
+        result.push({ id: v.id, variantSku: v.variantSku, productName: p.name, color: v.color || "" });
+      }
+    } else {
+      result.push({ id: p.id, variantSku: p.sku, productName: p.name, color: "" });
+    }
+  }
+  return result;
+}
 
 // ── Reorder Suggestions ───────────────────────────────────────────────────────
 
