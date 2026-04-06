@@ -1,11 +1,11 @@
 // ── Categories ────────────────────────────────────────────────────────────────
 
 export const categories = [
-  { id: "C1", name: "Electronics"  },
-  { id: "C2", name: "Peripherals"  },
-  { id: "C3", name: "Furniture"    },
-  { id: "C4", name: "Networking"   },
-  { id: "C5", name: "Accessories"  },
+  { id: "C1", name: "Electronics", description: "Consumer electronics and display devices"     },
+  { id: "C2", name: "Peripherals", description: "Input devices, audio, and computer peripherals" },
+  { id: "C3", name: "Furniture",   description: "Office furniture and ergonomic accessories"   },
+  { id: "C4", name: "Networking",  description: "Network cables, switches, and connectivity"   },
+  { id: "C5", name: "Accessories", description: "Portable accessories and utility items"        },
 ];
 
 // ── Products ──────────────────────────────────────────────────────────────────
