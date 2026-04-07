@@ -34,7 +34,8 @@ const pageTitles: Record<string, string> = {
   "/clerk/inventory": "Inventory",
   "/clerk/transactions/new": "Record Transaction",
   "/clerk/transactions": "Transaction History",
-  "/profile": "Profile & Settings",
+  "/admin/profile": "Profile & Settings",
+  "/clerk/profile": "Profile & Settings",
 };
 
 const DashboardLayout = ({ requiredRole }: Props) => {
@@ -43,7 +44,8 @@ const DashboardLayout = ({ requiredRole }: Props) => {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  if (user.role !== requiredRole && location.pathname !== "/profile") {
+  const profilePath = `/${user.role}/profile`;
+  if (user.role !== requiredRole && location.pathname !== profilePath) {
     return (
       <Navigate
         to={user.role === "admin" ? "/admin/dashboard" : "/clerk/dashboard"}
@@ -94,7 +96,7 @@ const DashboardLayout = ({ requiredRole }: Props) => {
 
                 <DropdownMenuContent align="end" className="mr-2 w-44">
                   <DropdownMenuItem asChild>
-                    <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                    <Link to={`/${user.role}/profile`} className="flex items-center gap-2 cursor-pointer">
                       <Settings className="h-4 w-4" />
                       Profile & Settings
                     </Link>

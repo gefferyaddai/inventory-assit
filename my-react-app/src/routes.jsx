@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
 // ── Lazy page imports ─────────────────────────────────────────────────────────
@@ -35,13 +35,6 @@ function RedirectIfAuthed({ children }) {
   if (user) {
     return <Navigate to={user.role === 'admin' ? '/admin/dashboard' : '/clerk/dashboard'} replace />;
   }
-  return children;
-}
-
-function RequireAuth({ children }) {
-  const { user } = useAuth();
-  const location = useLocation();
-  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
   return children;
 }
 
@@ -86,6 +79,7 @@ export const routes = [
       { path: 'reorders',   element: <S><ReorderSuggestionsPage /></S> },
       { path: 'reports',    element: <S><ReportsPage /></S> },
       { path: 'users',      element: <S><UserManagementPage /></S> },
+      { path: 'profile',    element: <S><ProfilePage /></S> },
     ],
   },
 
@@ -98,13 +92,8 @@ export const routes = [
       { path: 'inventory',        element: <S><ClerkInventoryPage /></S> },
       { path: 'transactions/new', element: <S><RecordTransactionPage /></S> },
       { path: 'transactions',     element: <S><TransactionHistoryPage /></S> },
+      { path: 'profile',          element: <S><ProfilePage /></S> },
     ],
-  },
-
-  // Shared
-  {
-    path: '/profile',
-    element: <RequireAuth><S><ProfilePage /></S></RequireAuth>,
   },
 
   // Root redirect
