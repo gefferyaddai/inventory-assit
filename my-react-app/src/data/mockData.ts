@@ -103,9 +103,9 @@ export const supplierProducts: Record<string, string[]> = {
 // ── Warehouses ────────────────────────────────────────────────────────────────
 
 export const warehouses = [
-  { id: "W1", name: "Main Warehouse", location: "Calgary, AB",   address: "100 Logistics Way, Calgary, AB T2P 1G5",  capacity: 5000, managerName: "Robert Kim",    assignedAdmins: ["Kevin"] },
-  { id: "W2", name: "East Wing",      location: "Edmonton, AB",  address: "500 Commerce Dr, Edmonton, AB T5J 2Z1",   capacity: 2500, managerName: "Patricia Gomez", assignedAdmins: ["Kevin"] },
-  { id: "W3", name: "Storage Annex",  location: "Red Deer, AB",  address: "300 Industrial Pkwy, Red Deer, AB T4N 3X5", capacity: 1500, managerName: "Steven Wright", assignedAdmins: [] },
+  { id: "W1", name: "Main Warehouse", location: "Calgary, AB",   address: "100 Logistics Way, Calgary, AB T2P 1G5",    capacity: 5000, managerName: "Robert Kim",    assignedAdmins: ["Kevin"], taxRegion: "AB" },
+  { id: "W2", name: "East Wing",      location: "Edmonton, AB",  address: "500 Commerce Dr, Edmonton, AB T5J 2Z1",     capacity: 2500, managerName: "Patricia Gomez", assignedAdmins: ["Kevin"], taxRegion: "AB" },
+  { id: "W3", name: "Storage Annex",  location: "Red Deer, AB",  address: "300 Industrial Pkwy, Red Deer, AB T4N 3X5", capacity: 1500, managerName: "Steven Wright", assignedAdmins: [],         taxRegion: "AB" },
 ];
 
 // ── Warehouse Stocks ──────────────────────────────────────────────────────────

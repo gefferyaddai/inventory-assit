@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, ArrowLeft, MoreHorizontal, Download } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, ArrowLeft, MoreHorizontal, Download, Search } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { warehouses as initialWarehouses, warehouseStocks } from "@/data/mockData";
+import { TAX_REGIONS } from "@/data/taxRegions";
 
 const stockStatusClass = (s) => {
   if (s === "Low Stock") return "bg-yellow-50 text-yellow-700 border-yellow-200";
@@ -15,7 +16,59 @@ const stockStatusClass = (s) => {
   return "bg-green-50 text-green-700 border-green-200";
 };
 
-const EMPTY_FORM = { name: "", address: "", capacity: "", managerName: "" };
+const EMPTY_FORM = { name: "", address: "", capacity: "", managerName: "", taxRegion: "" };
+
+function TaxRegionSelect({ value, onChange }) {
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return q
+      ? TAX_REGIONS.filter(
+          (r) => r.region.toLowerCase().includes(q) || r.provinceCode.toLowerCase().includes(q)
+        )
+      : TAX_REGIONS;
+  }, [search]);
+
+  const selected = TAX_REGIONS.find((r) => r.provinceCode === value);
+
+  return (
+    <div className="space-y-1.5">
+      <div className="relative flex items-center border border-input rounded-md bg-background focus-within:ring-1 focus-within:ring-ring">
+        <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 pointer-events-none" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={selected ? `${selected.region} (${selected.provinceCode})` : "Search province / territory…"}
+          className="h-9 pl-8 pr-3 w-full text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+      <div className="max-h-40 overflow-y-auto rounded-md border border-border divide-y divide-border">
+        <button
+          type="button"
+          onClick={() => { onChange(""); setSearch(""); }}
+          className={`flex items-center justify-between w-full px-3 py-2 text-sm text-left hover:bg-accent/5 transition-colors ${!value ? "bg-accent/10 text-accent font-medium" : "text-muted-foreground"}`}
+        >
+          <span>No region set</span>
+        </button>
+        {filtered.map((r) => (
+          <button
+            key={r.provinceCode}
+            type="button"
+            onClick={() => { onChange(r.provinceCode); setSearch(""); }}
+            className={`flex items-center justify-between w-full px-3 py-2 text-sm text-left hover:bg-accent/5 transition-colors ${value === r.provinceCode ? "bg-accent/10 text-accent font-medium" : "text-foreground"}`}
+          >
+            <span>{r.region}</span>
+            <span className="text-xs text-muted-foreground font-mono">
+              {r.provinceCode} · {r.taxes.map((t) => `${t.code} ${(t.rate * 100).toFixed(2).replace(/\.?0+$/, "")}%`).join(" + ")}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function WarehousesPage() {
   const [items, setItems] = useState(initialWarehouses);
@@ -27,7 +80,13 @@ export default function WarehousesPage() {
   const openAdd = () => { setEditing(null); setForm(EMPTY_FORM); setFormOpen(true); };
   const openEdit = (w) => {
     setEditing(w);
-    setForm({ name: w.name, address: w.address, capacity: String(w.capacity), managerName: w.managerName });
+    setForm({
+      name:        w.name,
+      address:     w.address,
+      capacity:    String(w.capacity),
+      managerName: w.managerName,
+      taxRegion:   w.taxRegion ?? "",
+    });
     setFormOpen(true);
   };
 
@@ -36,7 +95,7 @@ export default function WarehousesPage() {
     if (editing) {
       setItems((prev) => prev.map((w) =>
         w.id === editing.id
-          ? { ...w, name: form.name, address: form.address, capacity: Number(form.capacity), managerName: form.managerName }
+          ? { ...w, name: form.name, address: form.address, capacity: Number(form.capacity), managerName: form.managerName, taxRegion: form.taxRegion }
           : w
       ));
       toast.success("Warehouse updated");
@@ -45,6 +104,7 @@ export default function WarehousesPage() {
         id: `wh-${Date.now()}`, name: form.name, address: form.address,
         capacity: Number(form.capacity), managerName: form.managerName,
         location: form.address, assignedAdmins: [],
+        taxRegion: form.taxRegion,
       }]);
       toast.success("Warehouse added");
     }
@@ -53,11 +113,15 @@ export default function WarehousesPage() {
 
   const viewing = viewingId ? items.find((w) => w.id === viewingId) : null;
   const viewingStocks = viewingId ? (warehouseStocks[viewingId] || []) : [];
+  const viewingTaxRegion = viewing?.taxRegion
+    ? TAX_REGIONS.find((r) => r.provinceCode === viewing.taxRegion)
+    : null;
 
   const exportXLSX = () => {
     const data = items.map((w) => ({
       Name: w.name, Address: w.address, Capacity: w.capacity,
       Manager: w.managerName, Admins: (w.assignedAdmins || []).join(", "),
+      "Tax Region": w.taxRegion || "—",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -84,6 +148,17 @@ export default function WarehousesPage() {
             <div><span className="text-gray-400">Capacity:</span> <span className="text-gray-700">{(viewing.capacity || 0).toLocaleString()} units</span></div>
             <div><span className="text-gray-400">Manager:</span> <span className="text-gray-700">{viewing.managerName || "—"}</span></div>
             <div><span className="text-gray-400">Admins:</span> <span className="text-gray-700">{(viewing.assignedAdmins || []).join(", ") || "None"}</span></div>
+            <div className="sm:col-span-2">
+              <span className="text-gray-400">Tax Region:</span>{" "}
+              {viewingTaxRegion ? (
+                <span className="text-gray-700">
+                  {viewingTaxRegion.region} ({viewingTaxRegion.provinceCode}) —{" "}
+                  {viewingTaxRegion.taxes.map((t) => `${t.code} ${(t.rate * 100).toFixed(2).replace(/\.?0+$/, "")}%`).join(", ")}
+                </span>
+              ) : (
+                <span className="text-gray-400">Not set</span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -149,7 +224,7 @@ export default function WarehousesPage() {
               <th className="hidden sm:table-cell px-4 py-3">Location</th>
               <th className="px-4 py-3 text-right">Capacity</th>
               <th className="hidden md:table-cell px-4 py-3">Manager</th>
-              <th className="hidden lg:table-cell px-4 py-3">Admins</th>
+              <th className="hidden lg:table-cell px-4 py-3">Tax Region</th>
               <th className="px-4 py-3 w-10"></th>
             </tr>
           </thead>
@@ -157,28 +232,40 @@ export default function WarehousesPage() {
             {items.length === 0 && (
               <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No warehouses yet.</td></tr>
             )}
-            {items.map((w) => (
-              <tr key={w.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-4 py-3 font-medium text-gray-900">{w.name}</td>
-                <td className="hidden sm:table-cell px-4 py-3 text-gray-500">{w.location}</td>
-                <td className="px-4 py-3 text-right font-mono text-gray-700">{(w.capacity || 0).toLocaleString()}</td>
-                <td className="hidden md:table-cell px-4 py-3 text-gray-500">{w.managerName || "—"}</td>
-                <td className="hidden lg:table-cell px-4 py-3 text-gray-500">{(w.assignedAdmins || []).length}</td>
-                <td className="px-4 py-3">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setViewingId(w.id)}>View Details</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openEdit(w)}>Edit</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </td>
-              </tr>
-            ))}
+            {items.map((w) => {
+              const region = w.taxRegion ? TAX_REGIONS.find((r) => r.provinceCode === w.taxRegion) : null;
+              return (
+                <tr key={w.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 font-medium text-gray-900">{w.name}</td>
+                  <td className="hidden sm:table-cell px-4 py-3 text-gray-500">{w.location}</td>
+                  <td className="px-4 py-3 text-right font-mono text-gray-700">{(w.capacity || 0).toLocaleString()}</td>
+                  <td className="hidden md:table-cell px-4 py-3 text-gray-500">{w.managerName || "—"}</td>
+                  <td className="hidden lg:table-cell px-4 py-3 text-gray-500">
+                    {region ? (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="font-mono text-xs bg-gray-100 text-gray-600 rounded px-1.5 py-0.5">{region.provinceCode}</span>
+                        <span>{region.region}</span>
+                      </span>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setViewingId(w.id)}>View Details</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEdit(w)}>Edit</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -218,6 +305,21 @@ export default function WarehousesPage() {
                 <Label>Manager</Label>
                 <Input value={form.managerName} onChange={(e) => setForm({ ...form, managerName: e.target.value })} placeholder="Full name" />
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tax Region</Label>
+              <TaxRegionSelect
+                value={form.taxRegion}
+                onChange={(v) => setForm({ ...form, taxRegion: v })}
+              />
+              {form.taxRegion && (() => {
+                const r = TAX_REGIONS.find((x) => x.provinceCode === form.taxRegion);
+                return r ? (
+                  <p className="text-xs text-muted-foreground">
+                    Clerks will see: {r.taxes.map((t) => `${t.code} (${(t.rate * 100).toFixed(2).replace(/\.?0+$/, "")}%)`).join(", ")}
+                  </p>
+                ) : null;
+              })()}
             </div>
           </div>
           <DialogFooter>
