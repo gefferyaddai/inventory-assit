@@ -472,7 +472,7 @@ export default function RecordTransactionPage() {
   const [receipt, setReceipt]         = useState(null);
 
   // Tax settings
-  const [taxCode, setTaxCode]         = useState(null);
+  const [taxCode, setTaxCode]         = useState(WAREHOUSE_TAXES[0] ?? null);
   const [taxExempt, setTaxExempt]     = useState(false);
   const [showTaxSettings, setShowTaxSettings] = useState(false);
 
@@ -575,7 +575,7 @@ export default function RecordTransactionPage() {
     setNotes("");
     setCancelReceiptNo("");
     setEditingId(null);
-    setTaxCode(null);
+    setTaxCode(WAREHOUSE_TAXES[0] ?? null);
     setTaxExempt(false);
     setShowTaxSettings(false);
   }
@@ -629,6 +629,11 @@ export default function RecordTransactionPage() {
               onValueChange={(v) => {
                 setType(v);
                 if (submitted) resetForm();
+                if ((v === "Sale" || v === "Return") && !taxExempt) {
+                  setTaxCode(WAREHOUSE_TAXES[0] ?? null);
+                } else if (v !== "Sale" && v !== "Return") {
+                  setTaxCode(null);
+                }
               }}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>

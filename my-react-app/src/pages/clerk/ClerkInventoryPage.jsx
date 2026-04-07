@@ -29,6 +29,8 @@ export default function ClerkInventoryPage() {
     const data = filtered.map((s) => ({
       SKU:             s.variantSku,
       Product:         s.productName,
+      Color:           s.color || "—",
+      Size:            s.size  || "—",
       "Qty On Hand":   s.qtyOnHand,
       "Reorder Point": s.reorderPoint,
       Bin:             s.binLocation,
@@ -87,7 +89,14 @@ export default function ClerkInventoryPage() {
               ) : filtered.map((s) => (
                 <tr key={s.productVariantId} className="hover:bg-muted/40 transition-colors">
                   <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{s.variantSku}</td>
-                  <td className="px-5 py-3 font-medium text-foreground">{s.productName}</td>
+                  <td className="px-5 py-3">
+                    <p className="font-medium text-foreground">{s.productName}</p>
+                    {(s.color || s.size) && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {[s.color, s.size].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                  </td>
                   <td className="px-5 py-3 font-mono text-right text-foreground">{s.qtyOnHand}</td>
                   <td className="px-5 py-3 text-muted-foreground hidden md:table-cell">{s.binLocation}</td>
                   <td className="px-5 py-3 font-mono text-right text-muted-foreground hidden lg:table-cell">{s.reorderPoint}</td>

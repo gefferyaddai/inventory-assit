@@ -112,23 +112,26 @@ export const warehouses = [
 
 export const warehouseStocks: Record<string, {
   productVariantId: string; variantSku: string; productName: string;
+  color?: string; size?: string;
   qtyOnHand: number; reorderPoint: number; binLocation: string; status: string;
 }[]> = {
   W1: [
-    { productVariantId: "PV001", variantSku: "WM-001",  productName: "Wireless Mouse",        qtyOnHand: 8,   reorderPoint: 20, binLocation: "A-01", status: "Low Stock" },
-    { productVariantId: "PV002", variantSku: "UC-002",  productName: "USB-C Hub",             qtyOnHand: 42,  reorderPoint: 15, binLocation: "A-02", status: "Overstock" },
-    { productVariantId: "PV005", variantSku: "WC-005",  productName: "Webcam HD",             qtyOnHand: 25,  reorderPoint: 12, binLocation: "B-01", status: "In Stock" },
-    { productVariantId: "PV010", variantSku: "MW-010",  productName: "Monitor 27\" 4K",       qtyOnHand: 3,   reorderPoint: 5,  binLocation: "C-03", status: "Low Stock" },
-    { productVariantId: "PV007", variantSku: "ET-007",  productName: "Ethernet Cable 5m",     qtyOnHand: 180, reorderPoint: 50, binLocation: "D-01", status: "Overstock" },
+    { productVariantId: "V001a", variantSku: "WM-001-BLK", productName: "Wireless Mouse",      color: "Black", size: "Standard", qtyOnHand: 5,   reorderPoint: 10, binLocation: "A-01", status: "Low Stock" },
+    { productVariantId: "V001b", variantSku: "WM-001-WHT", productName: "Wireless Mouse",      color: "White", size: "Standard", qtyOnHand: 3,   reorderPoint: 10, binLocation: "A-02", status: "Low Stock" },
+    { productVariantId: "PV002", variantSku: "UC-002",     productName: "USB-C Hub",           qtyOnHand: 42,  reorderPoint: 15, binLocation: "B-01", status: "Overstock" },
+    { productVariantId: "PV005", variantSku: "WC-005",     productName: "Webcam HD",           qtyOnHand: 25,  reorderPoint: 12, binLocation: "B-02", status: "In Stock"  },
+    { productVariantId: "PV010", variantSku: "MW-010",     productName: 'Monitor 27" 4K',      qtyOnHand: 3,   reorderPoint: 5,  binLocation: "C-01", status: "Low Stock" },
+    { productVariantId: "PV007", variantSku: "ET-007",     productName: "Ethernet Cable 5m",   qtyOnHand: 180, reorderPoint: 50, binLocation: "D-01", status: "Overstock" },
   ],
   W2: [
-    { productVariantId: "PV003", variantSku: "MK-003",  productName: "Mechanical Keyboard",   qtyOnHand: 6,   reorderPoint: 10, binLocation: "A-01", status: "Low Stock" },
-    { productVariantId: "PV004", variantSku: "MS-004",  productName: "Monitor Stand",         qtyOnHand: 12,  reorderPoint: 8,  binLocation: "B-02", status: "In Stock" },
-    { productVariantId: "PV009", variantSku: "LP-009",  productName: "Laptop Stand",          qtyOnHand: 38,  reorderPoint: 15, binLocation: "B-03", status: "Overstock" },
+    { productVariantId: "V003a", variantSku: "MK-003-BLU", productName: "Mechanical Keyboard", color: "Black", size: "TKL",  qtyOnHand: 4,  reorderPoint: 5,  binLocation: "A-01", status: "Low Stock" },
+    { productVariantId: "V003b", variantSku: "MK-003-RED", productName: "Mechanical Keyboard", color: "White", size: "Full", qtyOnHand: 2,  reorderPoint: 5,  binLocation: "A-02", status: "Low Stock" },
+    { productVariantId: "PV004", variantSku: "MS-004",     productName: "Monitor Stand",       qtyOnHand: 12, reorderPoint: 8,  binLocation: "B-01", status: "In Stock"  },
+    { productVariantId: "PV009", variantSku: "LP-009",     productName: "Laptop Stand",        qtyOnHand: 38, reorderPoint: 15, binLocation: "B-02", status: "Overstock" },
   ],
   W3: [
-    { productVariantId: "PV006", variantSku: "HS-006",  productName: "Headset Pro",           qtyOnHand: 4,   reorderPoint: 10, binLocation: "A-01", status: "Low Stock" },
-    { productVariantId: "PV008", variantSku: "SW-008",  productName: "Network Switch 8-Port", qtyOnHand: 9,   reorderPoint: 5,  binLocation: "A-02", status: "In Stock" },
+    { productVariantId: "PV006", variantSku: "HS-006",     productName: "Headset Pro",           qtyOnHand: 4,  reorderPoint: 10, binLocation: "A-01", status: "Low Stock" },
+    { productVariantId: "PV008", variantSku: "SW-008",     productName: "Network Switch 8-Port", qtyOnHand: 9,  reorderPoint: 5,  binLocation: "A-02", status: "In Stock"  },
   ],
 };
 
@@ -236,4 +239,28 @@ export const salesTrendData = [
   { week: "Mar W3", sales: 15, receipts: 20, adjustments: 1 },
   { week: "Mar W4", sales: 30, receipts: 15, adjustments: 4 },
   { week: "Apr W1", sales: 12, receipts: 35, adjustments: 2 },
+];
+
+// ── Clerk Transaction History ─────────────────────────────────────────────────
+// tax: { code, rate } | { exempt: true } | null  — only on Sale, Return, Adjustment
+
+export const clerkTransactions = [
+  { id: "RCT-A1B2C3D4", date: "2026-04-05", time: "14:32", type: "Sale",       product: "Wireless Mouse",      sku: "WM-001", qty: 3,  unitPrice: 29.99, tax: { code: "GST", rate: 0.05 }, notes: "" },
+  { id: "RCT-E5F6G7H8", date: "2026-04-05", time: "11:15", type: "Receipt",    product: "USB-C Hub",           sku: "UC-002", qty: 20, unitPrice: 49.99, tax: null,                         notes: "Supplier delivery" },
+  { id: "RCT-I9J0K1L2", date: "2026-04-04", time: "16:47", type: "Sale",       product: "Mechanical Keyboard", sku: "MK-003", qty: 1,  unitPrice: 89.99, tax: { code: "GST", rate: 0.05 }, notes: "" },
+  { id: "RCT-M3N4O5P6", date: "2026-04-04", time: "09:20", type: "Adjustment", product: "USB-C Hub",           sku: "UC-002", qty: 3,  unitPrice: 49.99, tax: { code: "GST", rate: 0.05 }, notes: "Damaged units removed" },
+  { id: "RCT-Q7R8S9T0", date: "2026-04-03", time: "13:05", type: "Return",     product: "Wireless Mouse",      sku: "WM-001", qty: 1,  unitPrice: 29.99, tax: { code: "GST", rate: 0.05 }, notes: "Customer return — defective" },
+  { id: "RCT-U1V2W3X4", date: "2026-04-03", time: "10:30", type: "Sale",       product: "Monitor Stand",       sku: "MS-004", qty: 2,  unitPrice: 39.99, tax: { exempt: true },             notes: "TAX-EXEMPT-7741" },
+  { id: "RCT-Y5Z6A7B8", date: "2026-04-02", time: "15:55", type: "Receipt",    product: "Webcam HD",           sku: "WC-005", qty: 10, unitPrice: 69.99, tax: null,                         notes: "Quarterly restock" },
+  { id: "RCT-C9D0E1F2", date: "2026-04-02", time: "12:10", type: "Sale",       product: "Wireless Mouse",      sku: "WM-001", qty: 5,  unitPrice: 29.99, tax: { code: "GST", rate: 0.05 }, notes: "" },
+  { id: "RCT-G3H4I5J6", date: "2026-04-01", time: "17:00", type: "Adjustment", product: "Mechanical Keyboard", sku: "MK-003", qty: 2,  unitPrice: 89.99, tax: { code: "GST", rate: 0.05 }, notes: "Inventory count correction" },
+  { id: "RCT-K7L8M9N0", date: "2026-04-01", time: "09:45", type: "Sale",       product: "USB-C Hub",           sku: "UC-002", qty: 4,  unitPrice: 49.99, tax: { code: "GST", rate: 0.05 }, notes: "" },
+  { id: "RCT-O1P2Q3R4", date: "2026-03-31", time: "14:20", type: "Return",     product: "Monitor Stand",       sku: "MS-004", qty: 1,  unitPrice: 39.99, tax: { code: "GST", rate: 0.05 }, notes: "Wrong item shipped" },
+  { id: "RCT-S5T6U7V8", date: "2026-03-31", time: "11:30", type: "Sale",       product: "Webcam HD",           sku: "WC-005", qty: 2,  unitPrice: 69.99, tax: null,                         notes: "" },
+  { id: "RCT-W9X0Y1Z2", date: "2026-03-30", time: "16:15", type: "Receipt",    product: "Wireless Mouse",      sku: "WM-001", qty: 25, unitPrice: 29.99, tax: null,                         notes: "Emergency reorder" },
+  { id: "RCT-A3B4C5D6", date: "2026-03-30", time: "10:00", type: "Sale",       product: "Mechanical Keyboard", sku: "MK-003", qty: 3,  unitPrice: 89.99, tax: { code: "GST", rate: 0.05 }, notes: "" },
+  { id: "RCT-E7F8G9H0", date: "2026-03-29", time: "13:40", type: "Cancel",     product: "USB-C Hub",           sku: "UC-002", qty: 2,  unitPrice: 49.99, tax: null,                         notes: "Customer cancelled order" },
+  { id: "RCT-I1J2K3L4", date: "2026-03-29", time: "09:15", type: "Sale",       product: "Monitor Stand",       sku: "MS-004", qty: 1,  unitPrice: 39.99, tax: { exempt: true },             notes: "TAX-EXEMPT-3392" },
+  { id: "RCT-M5N6O7P8", date: "2026-03-28", time: "15:30", type: "Adjustment", product: "Webcam HD",           sku: "WC-005", qty: 1,  unitPrice: 69.99, tax: { code: "GST", rate: 0.05 }, notes: "Bin relocation count" },
+  { id: "RCT-Q9R0S1T2", date: "2026-03-28", time: "11:00", type: "Sale",       product: "Wireless Mouse",      sku: "WM-001", qty: 7,  unitPrice: 29.99, tax: { code: "GST", rate: 0.05 }, notes: "" },
 ];
