@@ -1,1 +1,29 @@
 .claude
+# Node modules
+node_modules/
+server/node_modules/
+my-react-app/node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+server/.env
+
+# Build output
+my-react-app/dist/
+my-react-app/build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.user
