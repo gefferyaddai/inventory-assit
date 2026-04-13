@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {jwtDecode} from 'jwt-decode';
 
 const MOCK_USERS = [
   { id: 1, name: 'Kevin', email: 'kevin@admin.com', password: 'admin123', role: 'admin', isActive: true },
@@ -31,12 +32,14 @@ export function AuthProvider({ children }) {
     const { password: _, ...safeUser } = match;
     setUser(safeUser);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(safeUser));
+    // assign jwt here if implemented
     return safeUser;
   }
 
   function logout() {
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
+    // revoke jwt here if implemented
     navigate('/login');
   }
 
