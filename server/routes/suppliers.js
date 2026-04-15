@@ -16,13 +16,13 @@ router.get('/', auth, async (req, res) => {
 
 // POST create supplier
 router.post('/', auth, requireRole('Admin'), async (req, res) => {
-  const { name, contactPerson, email, phone, address } = req.body;
+  const { companyName, contactName, email, phone, address, leadTimeDays } = req.body;
   try {
     const [result] = await pool.query(
-      'INSERT INTO Supplier (Name, ContactPerson, Email, Phone, Address) VALUES (?, ?, ?, ?, ?)',
-      [name, contactPerson, email, phone, address]
+      'INSERT INTO Supplier (CompanyName, ContactName, Email, Phone, Address, LeadTimeDays) VALUES (?, ?, ?, ?, ?, ?)',
+      [companyName, contactName, email, phone, address, leadTimeDays ?? 0]
     );
-    res.json({ id: result.insertId, name, contactPerson, email, phone, address });
+    res.json({ id: result.insertId, companyName, contactName, email, phone, address, leadTimeDays });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -30,11 +30,11 @@ router.post('/', auth, requireRole('Admin'), async (req, res) => {
 
 // PUT update supplier
 router.put('/:id', auth, requireRole('Admin'), async (req, res) => {
-  const { name, contactPerson, email, phone, address } = req.body;
+  const { companyName, contactName, email, phone, address, leadTimeDays } = req.body;
   try {
     await pool.query(
-      'UPDATE Supplier SET Name = ?, ContactPerson = ?, Email = ?, Phone = ?, Address = ? WHERE SupplierID = ?',
-      [name, contactPerson, email, phone, address, req.params.id]
+      'UPDATE Supplier SET CompanyName = ?, ContactName = ?, Email = ?, Phone = ?, Address = ?, LeadTimeDays = ? WHERE SupplierID = ?',
+      [companyName, contactName, email, phone, address, leadTimeDays ?? 0, req.params.id]
     );
     res.json({ message: 'Supplier updated' });
   } catch (err) {
@@ -57,8 +57,8 @@ router.get('/:id/products', auth, requireRole('Admin'), async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT p.* FROM Product p
-       JOIN SuppliedBy sb ON p.ProductID = sb.ProductID
-       WHERE sb.SupplierID = ?`,
+       JOIN Product_Supplier ps ON p.ProductID = ps.ProductID
+       WHERE ps.SupplierID = ?`,
       [req.params.id]
     );
     res.json(rows);

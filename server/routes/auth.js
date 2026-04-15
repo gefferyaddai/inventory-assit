@@ -24,7 +24,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.UserID, name: user.Name, email: user.Email, role: user.Role },
+      user: { id: user.UserID, name: `${user.FirstName} ${user.LastName}`, email: user.Email, role: user.Role },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -35,7 +35,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT UserID, Name, Email, Role FROM User WHERE UserID = ?',
+      'SELECT UserID, FirstName, LastName, Email, Role FROM User WHERE UserID = ?',
       [req.user.userId]
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found' });

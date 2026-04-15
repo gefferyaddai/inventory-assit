@@ -9,18 +9,18 @@ router.get('/', auth, async (req, res) => {
   const { status } = req.query;
   try {
     let query = `
-      SELECT rs.*, pv.SKU, pv.Size, pv.Color, pv.ReorderPoint,
-             p.Name as ProductName, w.Name as WarehouseName
+      SELECT rs.*, p.Name as ProductName, p.ReorderPoint,
+             w.Name as WarehouseName, s.CompanyName as SupplierName
       FROM ReorderSuggestion rs
-      JOIN ProductVariant pv ON rs.VariantID = pv.VariantID
-      JOIN Product p ON pv.ProductID = p.ProductID
+      JOIN Product p ON rs.ProductID = p.ProductID
       JOIN Warehouse w ON rs.WarehouseID = w.WarehouseID
+      LEFT JOIN Supplier s ON rs.SupplierID = s.SupplierID
       WHERE 1=1
     `;
     const params = [];
 
     if (status) { query += ' AND rs.Status = ?'; params.push(status); }
-    query += ' ORDER BY rs.CreatedAt DESC';
+    query += ' ORDER BY rs.GeneratedAt DESC';
 
     const [rows] = await pool.query(query, params);
     res.json(rows);
@@ -43,9 +43,9 @@ router.patch('/:id/dismiss', auth, requireRole('Admin'), async (req, res) => {
 });
 
 // PATCH /api/reorders/:id/convert — Admin only
-// Sets suggestion to Converted and creates a PurchaseOrder for the suggested quantity
+// Requires variantId in the body since the suggestion tracks product, not a specific variant
 router.patch('/:id/convert', auth, requireRole('Admin'), async (req, res) => {
-  const { supplierId } = req.body;
+  const { supplierId, variantId } = req.body;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -58,12 +58,12 @@ router.patch('/:id/convert', auth, requireRole('Admin'), async (req, res) => {
     const suggestion = rows[0];
 
     const [orderResult] = await conn.query(
-      'INSERT INTO PurchaseOrder (SupplierID, WarehouseID, TotalAmount, Status) VALUES (?, ?, 0, ?)',
-      [supplierId, suggestion.WarehouseID, 'Pending']
+      'INSERT INTO PurchaseOrder (SupplierID, WarehouseID, TotalAmount, Status, UserID) VALUES (?, ?, 0, ?, ?)',
+      [supplierId, suggestion.WarehouseID, 'Pending', req.user.userId]
     );
     await conn.query(
-      'INSERT INTO OrderItem (PurchaseOrderID, VariantID, Quantity, UnitCost) VALUES (?, ?, ?, 0)',
-      [orderResult.insertId, suggestion.VariantID, suggestion.SuggestedQuantity]
+      'INSERT INTO OrderItem (OrderID, ProductVariantID, Quantity, UnitCost) VALUES (?, ?, ?, 0)',
+      [orderResult.insertId, variantId, suggestion.SuggestedQuantity]
     );
 
     await conn.query(

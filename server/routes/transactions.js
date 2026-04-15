@@ -10,9 +10,9 @@ router.get('/', auth, requireRole('Admin'), async (req, res) => {
   try {
     let query = `
       SELECT it.*, pv.SKU, pv.Size, pv.Color, p.Name as ProductName,
-             u.Name as ClerkName, w.Name as WarehouseName
+             CONCAT(u.FirstName, ' ', u.LastName) as ClerkName, w.Name as WarehouseName
       FROM InventoryTransaction it
-      JOIN ProductVariant pv ON it.VariantID = pv.VariantID
+      JOIN ProductVariant pv ON it.ProductVariantID = pv.VariantID
       JOIN Product p ON pv.ProductID = p.ProductID
       JOIN User u ON it.UserID = u.UserID
       JOIN Warehouse w ON it.WarehouseID = w.WarehouseID
@@ -34,14 +34,14 @@ router.get('/', auth, requireRole('Admin'), async (req, res) => {
   }
 });
 
-// GET /api/transactions/mine — Clerk: own transactions only
+// GET /api/transactions/mine — StockClerk: own transactions only
 router.get('/mine', auth, requireRole('StockClerk'), async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT it.*, pv.SKU, pv.Size, pv.Color, p.Name as ProductName,
               w.Name as WarehouseName
        FROM InventoryTransaction it
-       JOIN ProductVariant pv ON it.VariantID = pv.VariantID
+       JOIN ProductVariant pv ON it.ProductVariantID = pv.VariantID
        JOIN Product p ON pv.ProductID = p.ProductID
        JOIN Warehouse w ON it.WarehouseID = w.WarehouseID
        WHERE it.UserID = ?
@@ -54,9 +54,7 @@ router.get('/mine', auth, requireRole('StockClerk'), async (req, res) => {
   }
 });
 
-// POST /api/transactions — Clerk: record new transaction
-// The trg_after_sale_insert trigger handles stock decrement + reorder suggestion for Sales.
-// Receipt transactions increment stock manually here.
+// POST /api/transactions — StockClerk: record new transaction
 router.post('/', auth, requireRole('StockClerk'), async (req, res) => {
   const { variantId, warehouseId, transactionType, quantity, notes, taxCode, taxRate } = req.body;
   const conn = await pool.getConnection();
@@ -65,14 +63,14 @@ router.post('/', auth, requireRole('StockClerk'), async (req, res) => {
 
     const [result] = await conn.query(
       `INSERT INTO InventoryTransaction
-         (UserID, VariantID, WarehouseID, TransactionType, Quantity, Notes, TaxCode, TaxRate)
+         (UserID, ProductVariantID, WarehouseID, TransactionType, Quantity, Notes, TaxCode, TaxRate)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [req.user.userId, variantId, warehouseId, transactionType, quantity, notes, taxCode, taxRate]
     );
 
     if (transactionType === 'Receipt') {
       await conn.query(
-        'UPDATE StoredIn SET QuantityOnHand = QuantityOnHand + ? WHERE VariantID = ? AND WarehouseID = ?',
+        'UPDATE StoredIn SET QuantityOnHand = QuantityOnHand + ? WHERE ProductVariantID = ? AND WarehouseID = ?',
         [quantity, variantId, warehouseId]
       );
     }

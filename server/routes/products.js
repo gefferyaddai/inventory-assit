@@ -8,8 +8,8 @@ const requireRole = require('../middleware/requireRole');
 router.get('/', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT p.*, c.Name as CategoryName 
-       FROM Product p 
+      `SELECT p.*, c.CategoryName
+       FROM Product p
        LEFT JOIN Category c ON p.CategoryID = c.CategoryID`
     );
     res.json(rows);
@@ -85,11 +85,11 @@ router.get('/:id/variants', auth, async (req, res) => {
 
 // POST add variant
 router.post('/:id/variants', auth, requireRole('Admin'), async (req, res) => {
-  const { sku, size, color, price, reorderPoint } = req.body;
+  const { sku, size, color, price, costPrice } = req.body;
   try {
     const [result] = await pool.query(
-      'INSERT INTO ProductVariant (ProductID, SKU, Size, Color, Price, ReorderPoint) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.params.id, sku, size, color, price, reorderPoint]
+      'INSERT INTO ProductVariant (ProductID, SKU, Size, Color, UnitPrice, CostPrice) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.params.id, sku, size, color, price, costPrice ?? 0]
     );
     res.json({ id: result.insertId });
   } catch (err) {
@@ -99,11 +99,11 @@ router.post('/:id/variants', auth, requireRole('Admin'), async (req, res) => {
 
 // PUT update variant
 router.put('/:id/variants/:vid', auth, requireRole('Admin'), async (req, res) => {
-  const { sku, size, color, price, reorderPoint } = req.body;
+  const { sku, size, color, price, costPrice } = req.body;
   try {
     await pool.query(
-      'UPDATE ProductVariant SET SKU = ?, Size = ?, Color = ?, Price = ?, ReorderPoint = ? WHERE VariantID = ?',
-      [sku, size, color, price, reorderPoint, req.params.vid]
+      'UPDATE ProductVariant SET SKU = ?, Size = ?, Color = ?, UnitPrice = ?, CostPrice = ? WHERE VariantID = ?',
+      [sku, size, color, price, costPrice ?? 0, req.params.vid]
     );
     res.json({ message: 'Variant updated' });
   } catch (err) {

@@ -19,7 +19,7 @@ router.post('/', auth, requireRole('Admin'), async (req, res) => {
   const { name, description } = req.body;
   try {
     const [result] = await pool.query(
-      'INSERT INTO Category (Name, Description) VALUES (?, ?)',
+      'INSERT INTO Category (CategoryName, Description) VALUES (?, ?)',
       [name, description]
     );
     res.json({ id: result.insertId, name, description });
@@ -33,7 +33,7 @@ router.put('/:id', auth, requireRole('Admin'), async (req, res) => {
   const { name, description } = req.body;
   try {
     await pool.query(
-      'UPDATE Category SET Name = ?, Description = ? WHERE CategoryID = ?',
+      'UPDATE Category SET CategoryName = ?, Description = ? WHERE CategoryID = ?',
       [name, description, req.params.id]
     );
     res.json({ message: 'Category updated' });

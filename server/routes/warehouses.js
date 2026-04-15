@@ -30,13 +30,13 @@ router.get('/:id', auth, async (req, res) => {
 
 // POST /api/warehouses — Admin only
 router.post('/', auth, requireRole('Admin'), async (req, res) => {
-  const { name, location, taxRegion } = req.body;
+  const { name, address, capacity, managerName, taxRegion } = req.body;
   try {
     const [result] = await pool.query(
-      'INSERT INTO Warehouse (Name, Location, TaxRegion) VALUES (?, ?, ?)',
-      [name, location, taxRegion]
+      'INSERT INTO Warehouse (Name, Address, Capacity, ManagerName, TaxRegion) VALUES (?, ?, ?, ?, ?)',
+      [name, address, capacity, managerName, taxRegion]
     );
-    res.json({ id: result.insertId, name, location, taxRegion });
+    res.json({ id: result.insertId, name, address, capacity, managerName, taxRegion });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -44,11 +44,11 @@ router.post('/', auth, requireRole('Admin'), async (req, res) => {
 
 // PUT /api/warehouses/:id — Admin only
 router.put('/:id', auth, requireRole('Admin'), async (req, res) => {
-  const { name, location, taxRegion } = req.body;
+  const { name, address, capacity, managerName, taxRegion } = req.body;
   try {
     await pool.query(
-      'UPDATE Warehouse SET Name = ?, Location = ?, TaxRegion = ? WHERE WarehouseID = ?',
-      [name, location, taxRegion, req.params.id]
+      'UPDATE Warehouse SET Name = ?, Address = ?, Capacity = ?, ManagerName = ?, TaxRegion = ? WHERE WarehouseID = ?',
+      [name, address, capacity, managerName, taxRegion, req.params.id]
     );
     res.json({ message: 'Warehouse updated' });
   } catch (err) {
@@ -70,10 +70,10 @@ router.delete('/:id', auth, requireRole('Admin'), async (req, res) => {
 router.get('/:id/stock', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT si.*, pv.SKU, pv.Size, pv.Color, pv.Price, pv.ReorderPoint,
+      `SELECT si.*, pv.SKU, pv.Size, pv.Color, pv.UnitPrice, p.ReorderPoint,
               p.Name as ProductName
        FROM StoredIn si
-       JOIN ProductVariant pv ON si.VariantID = pv.VariantID
+       JOIN ProductVariant pv ON si.ProductVariantID = pv.VariantID
        JOIN Product p ON pv.ProductID = p.ProductID
        WHERE si.WarehouseID = ?`,
       [req.params.id]

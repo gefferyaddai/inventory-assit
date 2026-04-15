@@ -9,7 +9,7 @@ const requireRole = require('../middleware/requireRole');
 router.get('/', auth, requireRole('Admin'), async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT UserID, Name, Email, Role, IsActive FROM User'
+      'SELECT UserID, FirstName, LastName, Email, Phone, Role, IsActive FROM User'
     );
     res.json(rows);
   } catch (err) {
@@ -21,7 +21,7 @@ router.get('/', auth, requireRole('Admin'), async (req, res) => {
 router.get('/:id', auth, requireRole('Admin'), async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT UserID, Name, Email, Role, IsActive FROM User WHERE UserID = ?',
+      'SELECT UserID, FirstName, LastName, Email, Phone, Role, IsActive FROM User WHERE UserID = ?',
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
@@ -33,14 +33,14 @@ router.get('/:id', auth, requireRole('Admin'), async (req, res) => {
 
 // POST /api/users — Admin only
 router.post('/', auth, requireRole('Admin'), async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { firstName, lastName, email, password, phone, role } = req.body;
   try {
     const hashed = await bcrypt.hash(password, 10);
     const [result] = await pool.query(
-      'INSERT INTO User (Name, Email, Password, Role) VALUES (?, ?, ?, ?)',
-      [name, email, hashed, role]
+      'INSERT INTO User (FirstName, LastName, Email, Password, Phone, Role) VALUES (?, ?, ?, ?, ?, ?)',
+      [firstName, lastName, email, hashed, phone, role]
     );
-    res.json({ id: result.insertId, name, email, role });
+    res.json({ id: result.insertId, firstName, lastName, email, phone, role });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -48,11 +48,11 @@ router.post('/', auth, requireRole('Admin'), async (req, res) => {
 
 // PUT /api/users/:id — Admin only
 router.put('/:id', auth, requireRole('Admin'), async (req, res) => {
-  const { name, email, role } = req.body;
+  const { firstName, lastName, email, phone, role } = req.body;
   try {
     await pool.query(
-      'UPDATE User SET Name = ?, Email = ?, Role = ? WHERE UserID = ?',
-      [name, email, role, req.params.id]
+      'UPDATE User SET FirstName = ?, LastName = ?, Email = ?, Phone = ?, Role = ? WHERE UserID = ?',
+      [firstName, lastName, email, phone, role, req.params.id]
     );
     res.json({ message: 'User updated' });
   } catch (err) {

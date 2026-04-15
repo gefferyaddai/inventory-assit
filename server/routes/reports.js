@@ -7,10 +7,10 @@ const auth = require('../middleware/auth');
 router.get('/inventory-value', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT c.Name as category, 
-       SUM(si.QuantityOnHand * pv.Price) as totalValue
+      `SELECT c.CategoryName as category,
+       SUM(si.QuantityOnHand * pv.UnitPrice) as totalValue
        FROM StoredIn si
-       JOIN ProductVariant pv ON si.VariantID = pv.VariantID
+       JOIN ProductVariant pv ON si.ProductVariantID = pv.VariantID
        JOIN Product p ON pv.ProductID = p.ProductID
        JOIN Category c ON p.CategoryID = c.CategoryID
        GROUP BY c.CategoryID`
@@ -26,11 +26,11 @@ router.get('/low-stock', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT p.Name as productName, pv.SKU, pv.Size, pv.Color,
-       si.QuantityOnHand, pv.ReorderPoint
+       si.QuantityOnHand, p.ReorderPoint
        FROM StoredIn si
-       JOIN ProductVariant pv ON si.VariantID = pv.VariantID
+       JOIN ProductVariant pv ON si.ProductVariantID = pv.VariantID
        JOIN Product p ON pv.ProductID = p.ProductID
-       WHERE si.QuantityOnHand < pv.ReorderPoint`
+       WHERE si.QuantityOnHand < p.ReorderPoint`
     );
     res.json(rows);
   } catch (err) {
@@ -60,8 +60,8 @@ router.get('/transaction-volume', auth, async (req, res) => {
 router.get('/supplier-performance', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT s.Name as supplier, COUNT(po.PurchaseOrderID) as totalOrders,
-       AVG(DATEDIFF(po.UpdatedAt, po.OrderDate)) as avgDeliveryDays
+      `SELECT s.CompanyName as supplier, COUNT(po.OrderID) as totalOrders,
+       AVG(DATEDIFF(po.ActualDeliveryDate, po.OrderDate)) as avgDeliveryDays
        FROM PurchaseOrder po
        JOIN Supplier s ON po.SupplierID = s.SupplierID
        GROUP BY s.SupplierID`
