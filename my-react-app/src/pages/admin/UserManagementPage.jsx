@@ -23,7 +23,7 @@ const statusClass = (s) =>
 
 const EMPTY_FORM = {
   firstName: "", lastName: "", email: "", password: "",
-  phone: "", role: "StockClerk",
+  phone: "", role: "StockClerk", warehouseId: "",
 };
 
 function normalizeUser(u) {
@@ -40,6 +40,7 @@ function normalizeUser(u) {
 
 export default function UserManagementPage() {
   const [users, setUsers] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -51,6 +52,7 @@ export default function UserManagementPage() {
 
   useEffect(() => {
     load();
+    api.get("/warehouses").then(setWarehouses).catch(() => {});
   }, []);
 
   async function load() {
@@ -102,6 +104,7 @@ export default function UserManagementPage() {
           firstName: form.firstName, lastName: form.lastName,
           email: form.email, password: form.password,
           phone: form.phone, role: form.role,
+          warehouseId: form.warehouseId || null,
         });
         toast.success("User added");
       }
@@ -286,7 +289,7 @@ export default function UserManagementPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Role</Label>
-              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v, warehouseId: "" })}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Admin">Admin</SelectItem>
@@ -294,6 +297,21 @@ export default function UserManagementPage() {
                 </SelectContent>
               </Select>
             </div>
+            {!editing && (
+              <div className="space-y-1.5">
+                <Label>{form.role === "StockClerk" ? "Assigned Warehouse" : "Warehouse"}</Label>
+                <Select value={form.warehouseId} onValueChange={(v) => setForm({ ...form, warehouseId: v })}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select warehouse…" /></SelectTrigger>
+                  <SelectContent>
+                    {warehouses.map((w) => (
+                      <SelectItem key={w.WarehouseID} value={String(w.WarehouseID)}>
+                        {w.Name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
