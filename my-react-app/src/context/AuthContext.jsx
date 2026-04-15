@@ -1,37 +1,36 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { loginRequest, getMeRequest } from '../services/authService';
 
-const MOCK_USERS = [
-  { id: 1, name: 'Kevin', email: 'kevin@admin.com', password: 'admin123', role: 'admin', isActive: true },
-  { id: 2, name: 'Cj Obi', email: 'cj@clerk.com', password: 'clerk123', role: 'clerk', isActive: true },
-];
-
-const STORAGE_KEY = 'auth_user';
+const STORAGE_KEY = 'auth_token';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // On mount, restore session from stored token
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      setUser(JSON.parse(stored));
+    const token = localStorage.getItem(STORAGE_KEY);
+    if (!token) {
+      setLoading(false);
+      return;
     }
+    getMeRequest(token)
+      .then((me) => {
+        if (me) setUser({ ...me, token });
+        else localStorage.removeItem(STORAGE_KEY);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  function login(email, password) {
-    const match = MOCK_USERS.find(
-      (u) => u.email === email && u.password === password && u.isActive
-    );
-    if (!match) {
-      throw new Error('Invalid credentials');
-    }
-    const { password: _, ...safeUser } = match;
-    setUser(safeUser);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(safeUser));
-    return safeUser;
+  async function login(email, password) {
+    const { token, user: me } = await loginRequest(email, password);
+    localStorage.setItem(STORAGE_KEY, token);
+    setUser({ ...me, token });
+    return me;
   }
 
   function logout() {
@@ -41,22 +40,21 @@ export function AuthProvider({ children }) {
   }
 
   function requireAuth() {
-    if (!user) {
-      navigate('/login');
-    }
+    if (!user) navigate('/login');
   }
 
   const value = useMemo(() => ({
     user,
+    loading,
     login,
     logout,
     requireAuth,
     isAuthenticated: !!user,
     role: user?.role || null,
-  }), [user]);
+  }), [user, loading]);
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={loading ? null : value}>
       {children}
     </AuthContext.Provider>
   );
