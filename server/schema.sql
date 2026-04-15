@@ -5,9 +5,8 @@
 CREATE DATABASE IF NOT EXISTS inventoryasset;
 USE inventoryasset;
 
--- ------------------------------------------------------------
+
 -- 1. User
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS User (
   UserID      INT          NOT NULL AUTO_INCREMENT,
   FirstName   VARCHAR(100) NOT NULL,
@@ -21,9 +20,8 @@ CREATE TABLE IF NOT EXISTS User (
   PRIMARY KEY (UserID)
 );
 
--- ------------------------------------------------------------
+
 -- 2. Admin  (subtype of User)
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Admin (
   UserID       INT          NOT NULL,
   AccessLevel  VARCHAR(50),
@@ -32,9 +30,8 @@ CREATE TABLE IF NOT EXISTS Admin (
   FOREIGN KEY (UserID) REFERENCES User(UserID) ON DELETE CASCADE
 );
 
--- ------------------------------------------------------------
+
 -- 3. StockClerk  (subtype of User)
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS StockClerk (
   UserID         INT  NOT NULL,
   WarehouseID    INT,
@@ -45,9 +42,8 @@ CREATE TABLE IF NOT EXISTS StockClerk (
   FOREIGN KEY (WarehouseID) REFERENCES Warehouse(WarehouseID) ON DELETE SET NULL
 );
 
--- ------------------------------------------------------------
+
 -- 4. Category
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Category (
   CategoryID   INT          NOT NULL AUTO_INCREMENT,
   CategoryName VARCHAR(100) NOT NULL,
@@ -55,9 +51,7 @@ CREATE TABLE IF NOT EXISTS Category (
   PRIMARY KEY (CategoryID)
 );
 
--- ------------------------------------------------------------
 -- 5. Supplier
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Supplier (
   SupplierID   INT          NOT NULL AUTO_INCREMENT,
   CompanyName  VARCHAR(150) NOT NULL,
@@ -69,9 +63,7 @@ CREATE TABLE IF NOT EXISTS Supplier (
   PRIMARY KEY (SupplierID)
 );
 
--- ------------------------------------------------------------
 -- 6. Warehouse
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Warehouse (
   WarehouseID  INT          NOT NULL AUTO_INCREMENT,
   Name         VARCHAR(150) NOT NULL,
@@ -82,9 +74,7 @@ CREATE TABLE IF NOT EXISTS Warehouse (
   PRIMARY KEY (WarehouseID)
 );
 
--- ------------------------------------------------------------
 -- 7. Product
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Product (
   ProductID      INT            NOT NULL AUTO_INCREMENT,
   SKU            VARCHAR(100)   UNIQUE,
@@ -102,9 +92,7 @@ CREATE TABLE IF NOT EXISTS Product (
   FOREIGN KEY (CategoryID) REFERENCES Category(CategoryID) ON DELETE SET NULL
 );
 
--- ------------------------------------------------------------
 -- 8. ProductVariant
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ProductVariant (
   VariantID  INT            NOT NULL AUTO_INCREMENT,
   ProductID  INT            NOT NULL,
@@ -118,9 +106,7 @@ CREATE TABLE IF NOT EXISTS ProductVariant (
   FOREIGN KEY (ProductID) REFERENCES Product(ProductID) ON DELETE CASCADE
 );
 
--- ------------------------------------------------------------
 -- 9. Product_Supplier  (many-to-many)
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Product_Supplier (
   ProductID           INT          NOT NULL,
   SupplierID          INT          NOT NULL,
@@ -131,9 +117,7 @@ CREATE TABLE IF NOT EXISTS Product_Supplier (
   FOREIGN KEY (SupplierID) REFERENCES Supplier(SupplierID) ON DELETE CASCADE
 );
 
--- ------------------------------------------------------------
 -- 10. StoredIn  (variant ↔ warehouse inventory levels)
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS StoredIn (
   ProductVariantID  INT          NOT NULL,
   WarehouseID       INT          NOT NULL,
@@ -144,9 +128,7 @@ CREATE TABLE IF NOT EXISTS StoredIn (
   FOREIGN KEY (WarehouseID)      REFERENCES Warehouse(WarehouseID)    ON DELETE CASCADE
 );
 
--- ------------------------------------------------------------
 -- 11. Admin_Warehouse  (many-to-many)
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Admin_Warehouse (
   UserID      INT  NOT NULL,
   WarehouseID INT  NOT NULL,
@@ -156,9 +138,7 @@ CREATE TABLE IF NOT EXISTS Admin_Warehouse (
   FOREIGN KEY (WarehouseID) REFERENCES Warehouse(WarehouseID) ON DELETE CASCADE
 );
 
--- ------------------------------------------------------------
 -- 12. PurchaseOrder
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS PurchaseOrder (
   OrderID              INT            NOT NULL AUTO_INCREMENT,
   OrderDate            DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -175,9 +155,7 @@ CREATE TABLE IF NOT EXISTS PurchaseOrder (
   FOREIGN KEY (WarehouseID) REFERENCES Warehouse(WarehouseID) ON DELETE SET NULL
 );
 
--- ------------------------------------------------------------
 -- 13. OrderItem
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS OrderItem (
   ItemNumber       INT            NOT NULL AUTO_INCREMENT,
   OrderID          INT            NOT NULL,
@@ -190,9 +168,7 @@ CREATE TABLE IF NOT EXISTS OrderItem (
   FOREIGN KEY (ProductVariantID) REFERENCES ProductVariant(VariantID)   ON DELETE CASCADE
 );
 
--- ------------------------------------------------------------
 -- 14. InventoryTransaction
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS InventoryTransaction (
   TransactionID    INT          NOT NULL AUTO_INCREMENT,
   TransactionType  ENUM('Sale','Receipt','Adjustment','Transfer') NOT NULL,
@@ -210,9 +186,7 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction (
   FOREIGN KEY (UserID)           REFERENCES User(UserID)              ON DELETE CASCADE
 );
 
--- ------------------------------------------------------------
 -- 15. ReorderSuggestion
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ReorderSuggestion (
   SuggestionID      INT      NOT NULL AUTO_INCREMENT,
   SuggestedQuantity INT      NOT NULL DEFAULT 0,
@@ -227,10 +201,8 @@ CREATE TABLE IF NOT EXISTS ReorderSuggestion (
   FOREIGN KEY (SupplierID)  REFERENCES Supplier(SupplierID)   ON DELETE SET NULL
 );
 
--- ------------------------------------------------------------
--- 16. Subscription  (Stripe billing — not in relational model
+-- 16. Subscription  (Stripe billing: not in relational model
 --     but required by billing.js)
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Subscription (
   SubscriptionID       INT          NOT NULL AUTO_INCREMENT,
   OrganizationID       INT          NOT NULL UNIQUE,
