@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   BarChart3,
   FolderTree,
@@ -15,7 +16,7 @@ import logoVar1 from "@/assets/images/logoVar1.png";
 import logoVar1Big from "@/assets/images/logoVar1Big.png";
 import { NavLink } from "@/components/NavLink";
 import { Badge } from "@/components/ui/badge";
-import { reorderSuggestions } from "@/data/mockData";
+import { api } from "@/services/api";
 import {
   Sidebar,
   SidebarContent,
@@ -42,27 +43,6 @@ type SidebarItem = {
   badge?: number;
 };
 
-const pendingReorders = reorderSuggestions.filter(
-  (reorder) => reorder.status === "Pending",
-).length;
-
-const adminItems: SidebarItem[] = [
-  { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
-  { title: "Products", url: "/admin/products", icon: Package },
-  { title: "Categories", url: "/admin/categories", icon: FolderTree },
-  { title: "Suppliers", url: "/admin/suppliers", icon: Truck },
-  { title: "Warehouses", url: "/admin/warehouses", icon: WarehouseIcon },
-  { title: "Purchase Orders", url: "/admin/orders", icon: ShoppingCart },
-  {
-    title: "Reorder Suggestions",
-    url: "/admin/reorders",
-    icon: RefreshCw,
-    badge: pendingReorders,
-  },
-  { title: "Reports", url: "/admin/reports", icon: BarChart3 },
-  { title: "User Management", url: "/admin/users", icon: Users },
-];
-
 const clerkItems: SidebarItem[] = [
   { title: "Dashboard", url: "/clerk/dashboard", icon: LayoutDashboard },
   { title: "Inventory", url: "/clerk/inventory", icon: Package },
@@ -75,9 +55,36 @@ const clerkItems: SidebarItem[] = [
 ];
 
 export function AppSidebar({ role }: { role: UserRole } & AppSidebarProps) {
-  const items = role === "admin" ? adminItems : clerkItems;
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const [pendingReorders, setPendingReorders] = useState(0);
+
+  useEffect(() => {
+    if (role !== "Admin" && role !== "admin") return;
+    api
+      .get("/reorders?status=Pending")
+      .then((data: unknown[]) => setPendingReorders(Array.isArray(data) ? data.length : 0))
+      .catch(() => {});
+  }, [role]);
+
+  const adminItems: SidebarItem[] = [
+    { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
+    { title: "Products", url: "/admin/products", icon: Package },
+    { title: "Categories", url: "/admin/categories", icon: FolderTree },
+    { title: "Suppliers", url: "/admin/suppliers", icon: Truck },
+    { title: "Warehouses", url: "/admin/warehouses", icon: WarehouseIcon },
+    { title: "Purchase Orders", url: "/admin/orders", icon: ShoppingCart },
+    {
+      title: "Reorder Suggestions",
+      url: "/admin/reorders",
+      icon: RefreshCw,
+      badge: pendingReorders,
+    },
+    { title: "Reports", url: "/admin/reports", icon: BarChart3 },
+    { title: "User Management", url: "/admin/users", icon: Users },
+  ];
+
+  const items = (role === "admin" || role === "Admin") ? adminItems : clerkItems;
 
   return (
     <Sidebar

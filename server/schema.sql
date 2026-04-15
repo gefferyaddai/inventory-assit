@@ -2,7 +2,7 @@
 -- G3 Inventory System — Schema
 -- Run this against the `inventoryasset` database
 -- ============================================================
-
+CREATE DATABASE IF NOT EXISTS inventoryasset;
 USE inventoryasset;
 
 -- ------------------------------------------------------------
@@ -37,10 +37,12 @@ CREATE TABLE IF NOT EXISTS Admin (
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS StockClerk (
   UserID         INT  NOT NULL,
+  WarehouseID    INT,
   AssignedShift  VARCHAR(50),
   HireDate       DATE,
   PRIMARY KEY (UserID),
-  FOREIGN KEY (UserID) REFERENCES User(UserID) ON DELETE CASCADE
+  FOREIGN KEY (UserID)      REFERENCES User(UserID)           ON DELETE CASCADE,
+  FOREIGN KEY (WarehouseID) REFERENCES Warehouse(WarehouseID) ON DELETE SET NULL
 );
 
 -- ------------------------------------------------------------

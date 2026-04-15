@@ -141,16 +141,101 @@ exports.getAllVariants = async (req, res) => {
 };
 
 exports.bulkImport = async (req, res) => {
-  const { products } = req.body;
+  const { rows } = req.body; // ImportRow[]
+  const conn = await pool.getConnection();
   try {
-    for (const p of products) {
-      await pool.query(
-        'INSERT INTO Product (Name, Description, CategoryID) VALUES (?, ?, ?)',
-        [p.name, p.description, p.categoryId]
-      );
+    await conn.beginTransaction();
+
+    // Build live category map
+    const [existingCats] = await conn.query('SELECT CategoryID, CategoryName FROM Category');
+    const categoryMap = {};
+    for (const c of existingCats) categoryMap[c.CategoryName.toLowerCase()] = c.CategoryID;
+
+    // Create any new categories
+    const newCatNames = [...new Set(
+      rows.filter(r => r.importStatus === 'new_category').map(r => r.category_name)
+    )];
+    let categoriesCreated = 0;
+    for (const name of newCatNames) {
+      const key = name.toLowerCase();
+      if (!categoryMap[key]) {
+        const [result] = await conn.query('INSERT INTO Category (CategoryName) VALUES (?)', [name]);
+        categoryMap[key] = result.insertId;
+        categoriesCreated++;
+      }
     }
-    res.json({ message: `${products.length} products imported` });
+
+    // Build live product map (sku → ProductID)
+    const [existingProds] = await conn.query('SELECT ProductID, SKU FROM Product');
+    const productMap = {};
+    for (const p of existingProds) productMap[p.SKU.toLowerCase()] = p.ProductID;
+
+    // Build live variant map (sku → VariantID)
+    const [existingVars] = await conn.query('SELECT VariantID, SKU FROM ProductVariant');
+    const variantMap = {};
+    for (const v of existingVars) variantMap[v.SKU.toLowerCase()] = v.VariantID;
+
+    // Build live warehouse map (name → WarehouseID)
+    const [warehouseRows] = await conn.query('SELECT WarehouseID, Name FROM Warehouse');
+    const warehouseMap = {};
+    for (const w of warehouseRows) warehouseMap[w.Name.toLowerCase()] = w.WarehouseID;
+
+    const validRows = rows.filter(r => r.importStatus !== 'error');
+    const seenProductSkus = new Set();
+    let productsCreated = 0, variantsCreated = 0;
+
+    for (const row of validRows) {
+      const psku = row.product_sku.toLowerCase();
+      const vsku = row.variant_sku.toLowerCase();
+
+      // Create product if new
+      if (!seenProductSkus.has(psku) && !productMap[psku]) {
+        seenProductSkus.add(psku);
+        const catId = categoryMap[row.category_name.toLowerCase()];
+        const [result] = await conn.query(
+          `INSERT INTO Product (Name, Description, CategoryID, SKU, UnitPrice, CostPrice, ReorderPoint, MaxStockLevel, UnitOfMeasure)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [row.product_name, row.description || '', catId || null, row.product_sku,
+           Number(row.unit_price) || 0, Number(row.cost_price) || 0,
+           Number(row.reorder_point) || 0, Number(row.max_stock_level) || 0,
+           row.unit_of_measure || 'Each']
+        );
+        productMap[psku] = result.insertId;
+        productsCreated++;
+      }
+
+      const productId = productMap[psku];
+      if (!productId) continue;
+
+      // Create variant if new
+      if (!variantMap[vsku]) {
+        const [result] = await conn.query(
+          'INSERT INTO ProductVariant (ProductID, SKU, Size, Color, UnitPrice, CostPrice) VALUES (?, ?, ?, ?, ?, ?)',
+          [productId, row.variant_sku, row.size || '', row.color || '',
+           Number(row.variant_unit_price) || Number(row.unit_price) || 0,
+           Number(row.variant_cost_price) || Number(row.cost_price) || 0]
+        );
+        variantMap[vsku] = result.insertId;
+        variantsCreated++;
+
+        // Initialize stock if warehouse is known
+        const warehouseId = warehouseMap[row.warehouse_name.toLowerCase()];
+        const qty = Number(row.quantity_on_hand) || 0;
+        if (warehouseId) {
+          await conn.query(
+            'INSERT INTO StoredIn (ProductVariantID, WarehouseID, QuantityOnHand, BinLocation) VALUES (?, ?, ?, ?)',
+            [result.insertId, warehouseId, qty, row.bin_location || '']
+          );
+        }
+      }
+    }
+
+    await conn.commit();
+    res.json({ productsCreated, variantsCreated, categoriesCreated });
   } catch (err) {
+    await conn.rollback();
     res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
   }
 };

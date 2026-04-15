@@ -1,16 +1,11 @@
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { api } from "@/services/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, AlertCircle } from "lucide-react";
-
-// Mock passwords mirror AuthContext MOCK_USERS
-const MOCK_PASSWORDS = {
-  "kevin@admin.com": "admin123",
-  "cj@clerk.com":    "clerk123",
-};
 
 function initials(name = "") {
   return name
@@ -50,10 +45,11 @@ export default function ProfilePage() {
 
   const [displayName, setDisplayName] = useState(user?.name ?? "");
   const [nameInput,   setNameInput]   = useState(user?.name ?? "");
-  const [nameStatus,  setNameStatus]  = useState(null); // { type, message }
+  const [nameStatus,  setNameStatus]  = useState(null);
 
   const [pwForm,   setPwForm]   = useState({ old: "", new: "", confirm: "" });
   const [pwStatus, setPwStatus] = useState(null);
+  const [pwSaving, setPwSaving] = useState(false);
 
   function handleNameSave() {
     if (!nameInput.trim()) return;
@@ -62,13 +58,8 @@ export default function ProfilePage() {
     setTimeout(() => setNameStatus(null), 3000);
   }
 
-  function handlePasswordSave() {
+  async function handlePasswordSave() {
     setPwStatus(null);
-    const correct = MOCK_PASSWORDS[user?.email];
-    if (pwForm.old !== correct) {
-      setPwStatus({ type: "error", message: "Current password is incorrect." });
-      return;
-    }
     if (pwForm.new.length < 6) {
       setPwStatus({ type: "error", message: "New password must be at least 6 characters." });
       return;
@@ -77,9 +68,20 @@ export default function ProfilePage() {
       setPwStatus({ type: "error", message: "New passwords do not match." });
       return;
     }
-    setPwForm({ old: "", new: "", confirm: "" });
-    setPwStatus({ type: "success", message: "Password changed successfully." });
-    setTimeout(() => setPwStatus(null), 3000);
+    setPwSaving(true);
+    try {
+      await api.put(`/users/${user.id}/password`, {
+        currentPassword: pwForm.old,
+        newPassword: pwForm.new,
+      });
+      setPwForm({ old: "", new: "", confirm: "" });
+      setPwStatus({ type: "success", message: "Password changed successfully." });
+      setTimeout(() => setPwStatus(null), 3000);
+    } catch (err) {
+      setPwStatus({ type: "error", message: err.message || "Failed to change password." });
+    } finally {
+      setPwSaving(false);
+    }
   }
 
   return (
@@ -88,7 +90,6 @@ export default function ProfilePage() {
       {/* ── Account card ── */}
       <Card>
         <div className="flex items-center gap-4">
-          {/* Avatar */}
           <div className="h-14 w-14 rounded-full bg-accent/20 flex items-center justify-center shrink-0">
             <span className="text-lg font-bold text-accent">{initials(displayName)}</span>
           </div>
@@ -98,7 +99,7 @@ export default function ProfilePage() {
             <Badge
               variant="outline"
               className={`mt-1 text-xs capitalize ${
-                user?.role === "admin"
+                user?.role === "Admin"
                   ? "bg-accent/10 text-accent border-accent/20"
                   : "bg-success/10 text-success border-success/20"
               }`}
@@ -165,10 +166,10 @@ export default function ProfilePage() {
         {pwStatus && <Alert type={pwStatus.type} message={pwStatus.message} />}
         <Button
           onClick={handlePasswordSave}
-          disabled={!pwForm.old || !pwForm.new || !pwForm.confirm}
+          disabled={pwSaving || !pwForm.old || !pwForm.new || !pwForm.confirm}
           className="bg-accent text-accent-foreground hover:bg-accent/90"
         >
-          Change Password
+          {pwSaving ? "Saving…" : "Change Password"}
         </Button>
       </Card>
 

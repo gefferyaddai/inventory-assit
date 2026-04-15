@@ -1,9 +1,9 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { parseImportFile } from "@/lib/parseImportFile";
-import { products as allProducts, categories } from "@/data/mockData";
+import { api } from "@/services/api";
 import ImportStep1Upload from "./ImportStep1Upload";
 import ImportStep2Preview from "./ImportStep2Preview";
 import ImportStep3Result from "./ImportStep3Result";
@@ -22,6 +22,24 @@ export default function BulkImportModal({ open, onOpenChange, onImportComplete }
   const [result, setResult]   = useState(null);
   const [error, setError]     = useState(null);
 
+  // Live validation context loaded from API when modal opens
+  const [validationCtx, setValidationCtx] = useState({ categories: [], warehouses: [], products: [] });
+
+  useEffect(() => {
+    if (!open) return;
+    Promise.all([
+      api.get("/categories"),
+      api.get("/warehouses"),
+      api.get("/products"),
+    ])
+      .then(([cats, whs, prods]) => {
+        setValidationCtx({ categories: cats, warehouses: whs, products: prods });
+      })
+      .catch(() => {
+        toast.error("Failed to load validation data");
+      });
+  }, [open]);
+
   const reset = useCallback(() => {
     setStep(0); setFile(null); setRows([]);
     setLoading(false); setResult(null); setError(null);
@@ -36,7 +54,7 @@ export default function BulkImportModal({ open, onOpenChange, onImportComplete }
     if (!file) return;
     setLoading(true);
     try {
-      const parsed = await parseImportFile(file);
+      const parsed = await parseImportFile(file, validationCtx);
       setRows(parsed);
       setStep(1);
     } catch (err) {
@@ -51,69 +69,18 @@ export default function BulkImportModal({ open, onOpenChange, onImportComplete }
     setLoading(true);
     setError(null);
 
-    await new Promise((r) => setTimeout(r, 1200));
-
     try {
       const validRows = rows.filter((r) => r.importStatus !== "error");
-      const productMap = new Map();
-      let productsCreated = 0, variantsCreated = 0, stockUpdated = 0, categoriesCreated = 0;
+      const data = await api.post("/products/bulk-import", { rows: validRows });
 
-      // Auto-create new categories
-      const newCategoryNames = new Set();
-      for (const row of validRows) {
-        if (row.importStatus === "new_category") {
-          const catName = row.category_name;
-          if (catName && !newCategoryNames.has(catName.toLowerCase()) && !categories.find((c) => c.name.toLowerCase() === catName.toLowerCase())) {
-            newCategoryNames.add(catName.toLowerCase());
-            categories.push({ id: `cat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, name: catName });
-            categoriesCreated++;
-          }
-        }
-      }
-
-      for (const row of validRows) {
-        const existingProduct = allProducts.find((p) => p.sku.toLowerCase() === row.product_sku.toLowerCase());
-
-        if (!productMap.has(row.product_sku) && !existingProduct) {
-          const newProd = {
-            id: `p-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            sku: row.product_sku, name: row.product_name, description: row.description || "",
-            category: row.category_name, unitPrice: Number(row.unit_price), costPrice: Number(row.cost_price),
-            reorderPoint: Number(row.reorder_point), maxStockLevel: Number(row.max_stock_level),
-            unitOfMeasure: row.unit_of_measure, expirationDate: row.expiration_date || null,
-            status: ["Active", "Inactive"].includes(row.product_status) ? row.product_status : "Active",
-            variants: [],
-          };
-          productMap.set(row.product_sku, newProd);
-          productsCreated++;
-        }
-
-        const prod = productMap.get(row.product_sku) || existingProduct;
-        if (prod) {
-          const existingVariant = prod.variants.find((v) => v.variantSku.toLowerCase() === row.variant_sku.toLowerCase());
-          if (existingVariant) {
-            stockUpdated++;
-          } else {
-            prod.variants.push({
-              id: `v-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-              variantSku: row.variant_sku, size: row.size || "", color: row.color || "",
-              unitPrice: row.variant_unit_price ? Number(row.variant_unit_price) : null,
-              costPrice: row.variant_cost_price ? Number(row.variant_cost_price) : null,
-              status: ["Active", "Inactive"].includes(row.product_status) ? row.product_status : "Active",
-            });
-            variantsCreated++;
-          }
-        }
-      }
-
+      const { productsCreated = 0, variantsCreated = 0, categoriesCreated = 0 } = data;
       const skipped = rows.filter((r) => r.importStatus === "error").length;
-      const newProducts = Array.from(productMap.values());
 
-      setResult({ productsCreated, variantsCreated, stockUpdated, skipped, categoriesCreated });
+      setResult({ productsCreated, variantsCreated, stockUpdated: 0, skipped, categoriesCreated });
       setLoading(false);
-      onImportComplete(newProducts);
+      onImportComplete([]);
       toast.success("Import complete", {
-        description: `${productsCreated} products added, ${variantsCreated} variants created${categoriesCreated > 0 ? `, ${categoriesCreated} categories created` : ""}.`,
+        description: `${productsCreated} products, ${variantsCreated} variants created${categoriesCreated > 0 ? `, ${categoriesCreated} categories` : ""}.`,
       });
     } catch (err) {
       setError(err.message || "An unexpected error occurred");

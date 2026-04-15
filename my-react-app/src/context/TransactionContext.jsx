@@ -1,5 +1,4 @@
 import { createContext, useContext, useState } from "react";
-import { mockTransactions } from "../services/mockData";
 
 const TransactionContext = createContext(null);
 
@@ -31,40 +30,9 @@ export function TransactionProvider({ children }) {
         setCart([]);
     }
 
-    // type: 'sale' | 'receipt' | 'adjustment' | 'return'
-    // warehouseId: string
-    // Returns the created transaction object
-    function submitTransaction(type, warehouseId) {
-        if (cart.length === 0) {
-            throw new Error("Cart is empty. Add at least one item before submitting.");
-        }
-
-        const newTransaction = {
-            id: `TXN-${Date.now()}`,
-            type,
-            warehouseId,
-            items: cart.map((c) => ({
-                productId: c.productId,
-                variantId: c.variantId,
-                productName: c.productName,
-                variantLabel: c.variantLabel,
-                qty: c.qty,
-                price: c.price,
-            })),
-            date: new Date().toISOString(),
-            createdAt: Date.now(),
-        };
-
-        // Append to the in-memory mock array so other parts of the app see the update
-        mockTransactions.push(newTransaction);
-
-        clearCart();
-        return newTransaction;
-    }
-
     return (
         <TransactionContext.Provider
-            value={{ cart, addToCart, removeFromCart, clearCart, submitTransaction }}
+            value={{ cart, addToCart, removeFromCart, clearCart }}
         >
             {children}
         </TransactionContext.Provider>
