@@ -8,35 +8,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
-import { warehouseStocks, getAllVariants, products, warehouses } from "@/data/mockData";
+import { api } from "@/services/api";
 import { TAX_REGIONS } from "@/data/taxRegions";
 import { Plus, Trash2, CheckCircle2, ChevronsUpDown, Check, Printer, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
-const CLERK_WAREHOUSE_ID   = "W1";
-const CLERK_WAREHOUSE_NAME = "Main Warehouse";
-const stocks = warehouseStocks[CLERK_WAREHOUSE_ID] || [];
-const allVariants = getAllVariants();
-const warehouseSkus = new Set(stocks.map((s) => s.variantSku));
-const availableVariants = allVariants.filter((v) => warehouseSkus.has(v.variantSku));
-
 const TRANSACTION_TYPES = ["Sale", "Receipt", "Adjustment", "Return", "Cancel"];
-
 const TAXABLE_TYPES = new Set(["Sale", "Return", "Adjustment"]);
-
-// Derive available tax codes from the warehouse's configured tax region
-const clerkWarehouse  = warehouses.find((w) => w.id === CLERK_WAREHOUSE_ID);
-const clerkTaxRegion  = clerkWarehouse?.taxRegion
-  ? TAX_REGIONS.find((r) => r.provinceCode === clerkWarehouse.taxRegion)
-  : null;
-const WAREHOUSE_TAXES = clerkTaxRegion?.taxes ?? [];
-
-function getUnitPrice(sku) {
-  const product = products.find(
-    (p) => p.sku === sku || p.variants.some((pv) => pv.variantSku === sku)
-  );
-  return product?.unitPrice ?? 0;
-}
 
 function formatClerkNo(userId) {
   return `CLK-${String(userId).padStart(3, "0")}`;
@@ -71,7 +49,7 @@ function ProductCombobox({ value, onChange, variants }) {
         !q ||
         v.productName.toLowerCase().includes(q) ||
         v.variantSku.toLowerCase().includes(q) ||
-        v.color.toLowerCase().includes(q)
+        (v.color || "").toLowerCase().includes(q)
     );
   }, [search, variants]);
 
@@ -154,16 +132,16 @@ function ProductCombobox({ value, onChange, variants }) {
   );
 }
 
-function TaxSettingsPopover({ taxCode, onTaxCode, taxExempt, onTaxExempt, onClose }) {
+function TaxSettingsPopover({ warehouseTaxes, taxRegionLabel, taxCode, onTaxCode, taxExempt, onTaxExempt, onClose }) {
   const [search, setSearch] = useState("");
   const containerRef        = useRef(null);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return q
-      ? WAREHOUSE_TAXES.filter((t) => t.label.toLowerCase().includes(q) || t.code.toLowerCase().includes(q))
-      : WAREHOUSE_TAXES;
-  }, [search]);
+      ? warehouseTaxes.filter((t) => t.label?.toLowerCase().includes(q) || t.code.toLowerCase().includes(q))
+      : warehouseTaxes;
+  }, [search, warehouseTaxes]);
 
   useEffect(() => {
     function onPointerDown(e) {
@@ -182,7 +160,6 @@ function TaxSettingsPopover({ taxCode, onTaxCode, taxExempt, onTaxExempt, onClos
     >
       <p className="text-xs font-semibold text-foreground">Tax Settings</p>
 
-      {/* Tax exempt toggle */}
       <label className="flex items-center gap-2 cursor-pointer select-none">
         <input
           type="checkbox"
@@ -202,16 +179,15 @@ function TaxSettingsPopover({ taxCode, onTaxCode, taxExempt, onTaxExempt, onClos
         </p>
       )}
 
-      {/* Tax code list — driven by warehouse tax region */}
       {!taxExempt && (
         <div className="space-y-1.5">
-          {WAREHOUSE_TAXES.length === 0 ? (
+          {warehouseTaxes.length === 0 ? (
             <p className="text-xs text-muted-foreground bg-muted/40 rounded-md px-2 py-1.5">
               No tax region configured for this warehouse. Ask an admin to set one.
             </p>
           ) : (
             <>
-              {WAREHOUSE_TAXES.length > 4 && (
+              {warehouseTaxes.length > 4 && (
                 <input
                   type="text"
                   value={search}
@@ -233,8 +209,8 @@ function TaxSettingsPopover({ taxCode, onTaxCode, taxExempt, onTaxExempt, onClos
                   </button>
                 ))}
               </div>
-              {clerkTaxRegion && (
-                <p className="text-xs text-muted-foreground">Region: {clerkTaxRegion.region}</p>
+              {taxRegionLabel && (
+                <p className="text-xs text-muted-foreground">Region: {taxRegionLabel}</p>
               )}
               {taxCode && (
                 <button
@@ -343,15 +319,12 @@ function ReceiptPanel({ receipt, onNew }) {
 
   return (
     <Card className="overflow-hidden">
-      {/* Header */}
       <div className="px-5 py-4 border-b border-border flex items-center gap-2">
         <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
         <h2 className="text-sm font-semibold text-foreground">Transaction Recorded</h2>
       </div>
 
-      {/* Receipt body */}
       <div className="px-5 py-4 space-y-4 font-mono text-xs">
-        {/* Meta */}
         <div className="space-y-1">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Receipt No.</span>
@@ -371,7 +344,6 @@ function ReceiptPanel({ receipt, onNew }) {
           </div>
         </div>
 
-        {/* Items */}
         <div className="border-t border-dashed border-border pt-3 space-y-2">
           {items.map((item) => (
             <div key={item.id} className="flex items-start justify-between gap-2">
@@ -403,7 +375,6 @@ function ReceiptPanel({ receipt, onNew }) {
           ))}
         </div>
 
-        {/* Subtotal / Tax / Grand Total */}
         <div className="border-t border-dashed border-border pt-2 space-y-1">
           <div className="flex justify-between text-muted-foreground">
             <span>Subtotal</span>
@@ -435,20 +406,12 @@ function ReceiptPanel({ receipt, onNew }) {
         )}
       </div>
 
-      {/* Actions */}
       <div className="px-5 pb-5 flex gap-2">
-        <Button
-          onClick={printReceipt}
-          variant="outline"
-          className="flex-1 gap-2"
-        >
+        <Button onClick={printReceipt} variant="outline" className="flex-1 gap-2">
           <Printer className="h-4 w-4" />
           Print / Save PDF
         </Button>
-        <Button
-          onClick={onNew}
-          className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
-        >
+        <Button onClick={onNew} className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90">
           New Transaction
         </Button>
       </div>
@@ -461,6 +424,14 @@ function ReceiptPanel({ receipt, onNew }) {
 export default function RecordTransactionPage() {
   const { user } = useAuth();
 
+  // Warehouse + stock data loaded from API
+  const [stocks, setStocks]               = useState([]);
+  const [warehouseName, setWarehouseName] = useState("");
+  const [warehouseTaxes, setWarehouseTaxes] = useState([]);
+  const [taxRegionLabel, setTaxRegionLabel] = useState("");
+  const [dataLoading, setDataLoading]     = useState(true);
+
+  // Form state
   const [type, setType]               = useState("Sale");
   const [variantId, setVariantId]     = useState("");
   const [quantity, setQuantity]       = useState("");
@@ -469,12 +440,47 @@ export default function RecordTransactionPage() {
   const [cartItems, setCartItems]     = useState([]);
   const [editingId, setEditingId]     = useState(null);
   const [submitted, setSubmitted]     = useState(false);
+  const [submitting, setSubmitting]   = useState(false);
   const [receipt, setReceipt]         = useState(null);
 
   // Tax settings
-  const [taxCode, setTaxCode]         = useState(WAREHOUSE_TAXES[0] ?? null);
-  const [taxExempt, setTaxExempt]     = useState(false);
+  const [taxCode, setTaxCode]                 = useState(null);
+  const [taxExempt, setTaxExempt]             = useState(false);
   const [showTaxSettings, setShowTaxSettings] = useState(false);
+
+  // Load warehouse info and stock on mount
+  useEffect(() => {
+    if (!user?.warehouseId) { setDataLoading(false); return; }
+    Promise.all([
+      api.get(`/warehouses/${user.warehouseId}`),
+      api.get(`/warehouses/${user.warehouseId}/stock`),
+    ])
+      .then(([wh, stock]) => {
+        const whName = wh.Name || "My Warehouse";
+        setWarehouseName(whName);
+
+        const region = wh.TaxRegion
+          ? TAX_REGIONS.find((r) => r.provinceCode === wh.TaxRegion)
+          : null;
+        const taxes = region?.taxes ?? [];
+        setWarehouseTaxes(taxes);
+        setTaxRegionLabel(region?.region ?? "");
+        if (taxes.length > 0) setTaxCode(taxes[0]);
+
+        setStocks(stock.map((s) => ({
+          productVariantId: s.ProductVariantID,
+          variantSku:       s.SKU || "",
+          productName:      s.ProductName || "",
+          color:            s.Color || "",
+          size:             s.Size || "",
+          qtyOnHand:        Number(s.QuantityOnHand) || 0,
+          binLocation:      s.BinLocation || "",
+          unitPrice:        Number(s.UnitPrice) || 0,
+        })));
+      })
+      .catch(() => toast.error('Failed to load warehouse data'))
+      .finally(() => setDataLoading(false));
+  }, [user?.warehouseId]);
 
   const isCancel = type === "Cancel";
 
@@ -492,21 +498,16 @@ export default function RecordTransactionPage() {
 
   const isInvalid = !!(selectedStock && type === "Sale" && qty > selectedStock.qtyOnHand);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const selectedVariant = useMemo(
-    () => availableVariants.find((v) => v.variantSku === variantId),
-    [variantId]
-  );
-
   function addToCart() {
     if (!selectedStock || qty <= 0 || isInvalid) return;
 
     const itemData = {
-      id:          editingId ?? `ITEM-${Date.now().toString(36)}`,
-      variantSku:  selectedStock.variantSku,
-      productName: selectedStock.productName,
-      quantity:    qty,
-      unitPrice:   getUnitPrice(variantId),
+      id:               editingId ?? `ITEM-${Date.now().toString(36)}`,
+      productVariantId: selectedStock.productVariantId,
+      variantSku:       selectedStock.variantSku,
+      productName:      selectedStock.productName,
+      quantity:         qty,
+      unitPrice:        selectedStock.unitPrice,
       type,
     };
 
@@ -536,7 +537,7 @@ export default function RecordTransactionPage() {
     setEditingId(id);
   }
 
-  function submitTransaction() {
+  async function submitTransaction() {
     if (isCancel) {
       if (!cancelReceiptNo.trim()) return;
       toast.success("Transaction cancelled", {
@@ -547,22 +548,41 @@ export default function RecordTransactionPage() {
     }
 
     if (cartItems.length === 0) return;
+    setSubmitting(true);
 
-    setReceipt({
-      receiptNo: generateReceiptNo(),
-      items:     cartItems,
-      notes,
-      clerkNo:   formatClerkNo(user?.id ?? 0),
-      timestamp: new Date().toISOString(),
-      warehouse: CLERK_WAREHOUSE_NAME,
-      taxCode,
-      taxExempt,
-    });
+    try {
+      for (const item of cartItems) {
+        await api.post('/transactions', {
+          variantId:       item.productVariantId,
+          warehouseId:     user.warehouseId,
+          transactionType: item.type,
+          quantity:        item.quantity,
+          notes,
+          taxCode:  taxCode?.code || null,
+          taxRate:  taxCode?.rate || null,
+        });
+      }
 
-    toast.success("Transaction submitted", {
-      description: `${cartItems.length} item(s) recorded successfully`,
-    });
-    setSubmitted(true);
+      setReceipt({
+        receiptNo: generateReceiptNo(),
+        items:     cartItems,
+        notes,
+        clerkNo:   formatClerkNo(user?.id ?? 0),
+        timestamp: new Date().toISOString(),
+        warehouse: warehouseName,
+        taxCode,
+        taxExempt,
+      });
+
+      toast.success("Transaction submitted", {
+        description: `${cartItems.length} item(s) recorded successfully`,
+      });
+      setSubmitted(true);
+    } catch (err) {
+      toast.error(err.message || 'Failed to submit transaction');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function resetForm() {
@@ -575,15 +595,29 @@ export default function RecordTransactionPage() {
     setNotes("");
     setCancelReceiptNo("");
     setEditingId(null);
-    setTaxCode(WAREHOUSE_TAXES[0] ?? null);
+    setTaxCode(warehouseTaxes[0] ?? null);
     setTaxExempt(false);
     setShowTaxSettings(false);
   }
 
   const showRightPanel = !isCancel;
-
-  // Tax badge label for the form header
   const taxBadgeLabel = taxExempt ? "Exempt" : taxCode ? taxCode.code : null;
+
+  if (dataLoading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+        Loading warehouse data…
+      </div>
+    );
+  }
+
+  if (!user?.warehouseId) {
+    return (
+      <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+        No warehouse assigned to your account. Contact an admin.
+      </div>
+    );
+  }
 
   return (
     <div className={`gap-6 ${showRightPanel ? "grid grid-cols-1 lg:grid-cols-2" : "max-w-lg"}`}>
@@ -591,7 +625,7 @@ export default function RecordTransactionPage() {
       {/* ── Left: Form ── */}
       <div className="space-y-4">
         <Card className="p-5 space-y-4">
-          {/* Form header with More (tax settings) button */}
+          {/* Form header with tax settings button */}
           <div className="flex items-center justify-between relative">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-foreground">Record Transaction</h2>
@@ -612,6 +646,8 @@ export default function RecordTransactionPage() {
 
             {showTaxSettings && (
               <TaxSettingsPopover
+                warehouseTaxes={warehouseTaxes}
+                taxRegionLabel={taxRegionLabel}
                 taxCode={taxCode}
                 onTaxCode={setTaxCode}
                 taxExempt={taxExempt}
@@ -630,7 +666,7 @@ export default function RecordTransactionPage() {
                 setType(v);
                 if (submitted) resetForm();
                 if ((v === "Sale" || v === "Return") && !taxExempt) {
-                  setTaxCode(WAREHOUSE_TAXES[0] ?? null);
+                  setTaxCode(warehouseTaxes[0] ?? null);
                 } else if (v !== "Sale" && v !== "Return") {
                   setTaxCode(null);
                 }
@@ -656,17 +692,15 @@ export default function RecordTransactionPage() {
             </div>
           ) : (
             <>
-              {/* Product combobox */}
               <div className="space-y-1.5">
                 <Label>Product</Label>
                 <ProductCombobox
                   value={variantId}
                   onChange={setVariantId}
-                  variants={availableVariants}
+                  variants={stocks}
                 />
               </div>
 
-              {/* Quantity */}
               <div className="space-y-1.5">
                 <Label>Quantity</Label>
                 <Input
@@ -682,15 +716,13 @@ export default function RecordTransactionPage() {
                 )}
               </div>
 
-              {/* Warehouse (read-only) */}
               <div className="space-y-1.5">
                 <Label>Warehouse</Label>
-                <Input value={CLERK_WAREHOUSE_NAME} disabled />
+                <Input value={warehouseName} disabled />
               </div>
             </>
           )}
 
-          {/* Notes */}
           <div className="space-y-1.5">
             <Label>Notes</Label>
             <Textarea
@@ -752,7 +784,7 @@ export default function RecordTransactionPage() {
           {isCancel ? (
             <Button
               onClick={submitTransaction}
-              disabled={!cancelReceiptNo.trim()}
+              disabled={!cancelReceiptNo.trim() || submitting}
               className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Cancel Transaction
@@ -760,10 +792,10 @@ export default function RecordTransactionPage() {
           ) : (
             <Button
               onClick={submitted ? resetForm : submitTransaction}
-              disabled={!submitted && cartItems.length === 0}
+              disabled={!submitted && (cartItems.length === 0 || submitting)}
               className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
             >
-              {submitted ? "New Transaction" : "Submit Transaction"}
+              {submitted ? "New Transaction" : submitting ? "Submitting…" : "Submit Transaction"}
             </Button>
           )}
         </div>

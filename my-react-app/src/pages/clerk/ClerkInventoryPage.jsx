@@ -1,13 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { warehouseStocks } from "@/data/mockData";
+import { useAuth } from "@/context/AuthContext";
+import { api } from "@/services/api";
 import * as XLSX from "xlsx";
 
-const CLERK_WAREHOUSE_NAME = "Main Warehouse";
-const stocks = warehouseStocks["W1"] || [];
+function normalizeStock(s) {
+  return {
+    productVariantId: s.ProductVariantID,
+    variantSku:       s.SKU || "",
+    productName:      s.ProductName || "",
+    color:            s.Color || "",
+    size:             s.Size || "",
+    qtyOnHand:        Number(s.QuantityOnHand) || 0,
+    binLocation:      s.BinLocation || "",
+    reorderPoint:     Number(s.ReorderPoint) || 0,
+    status:           s.status || "In Stock",
+  };
+}
 
 function statusClass(s) {
   if (s === "Low Stock") return "bg-warning/10 text-warning border-warning/20";
@@ -16,7 +28,25 @@ function statusClass(s) {
 }
 
 export default function ClerkInventoryPage() {
-  const [search, setSearch] = useState("");
+  const { user } = useAuth();
+  const [stocks, setStocks]         = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [warehouseName, setWarehouseName] = useState("My Warehouse");
+  const [search, setSearch]         = useState("");
+
+  useEffect(() => {
+    if (!user?.warehouseId) return;
+    Promise.all([
+      api.get(`/warehouses/${user.warehouseId}`),
+      api.get(`/warehouses/${user.warehouseId}/stock`),
+    ])
+      .then(([wh, stock]) => {
+        setWarehouseName(wh.Name || "My Warehouse");
+        setStocks(stock.map(normalizeStock));
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [user?.warehouseId]);
 
   const filtered = stocks.filter(
     (s) =>
@@ -65,7 +95,7 @@ export default function ClerkInventoryPage() {
       {/* ── Inventory Table ── */}
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="px-5 py-4 border-b border-border">
-          <h2 className="text-sm font-semibold text-foreground">{CLERK_WAREHOUSE_NAME}</h2>
+          <h2 className="text-sm font-semibold text-foreground">{warehouseName}</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -80,10 +110,15 @@ export default function ClerkInventoryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.length === 0 ? (
+              {loading && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-8 text-center text-muted-foreground">Loading…</td>
+                </tr>
+              )}
+              {!loading && filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-5 py-8 text-center text-muted-foreground">
-                    No items match your search
+                    {search ? "No items match your search" : "No inventory in your warehouse yet."}
                   </td>
                 </tr>
               ) : filtered.map((s) => (
@@ -98,7 +133,7 @@ export default function ClerkInventoryPage() {
                     )}
                   </td>
                   <td className="px-5 py-3 font-mono text-right text-foreground">{s.qtyOnHand}</td>
-                  <td className="px-5 py-3 text-muted-foreground hidden md:table-cell">{s.binLocation}</td>
+                  <td className="px-5 py-3 text-muted-foreground hidden md:table-cell">{s.binLocation || "—"}</td>
                   <td className="px-5 py-3 font-mono text-right text-muted-foreground hidden lg:table-cell">{s.reorderPoint}</td>
                   <td className="px-5 py-3">
                     <Badge variant="outline" className={statusClass(s.status)}>{s.status}</Badge>

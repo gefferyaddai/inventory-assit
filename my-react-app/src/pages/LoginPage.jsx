@@ -13,37 +13,14 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const validUsers = {
-    admin: { email: "kevin@admin.com", password: "admin123", name: "Kevin", role: "admin" },
-    clerk: { email: "cj@clerk.com",    password: "clerk123", name: "Cj Obi", role: "clerk" },
-  };
-
-  const getRoleFromEmail = (inputEmail) => {
-    const normalized = inputEmail.toLowerCase().trim();
-    if (normalized === validUsers.admin.email) return "admin";
-    if (normalized === validUsers.clerk.email) return "clerk";
-    return null;
-  };
-
-  const validateCredentials = (email, password, role) => {
-    const user = validUsers[role];
-    return user && user.email === email.toLowerCase().trim() && user.password === password;
-  };
-
   const handleLogin = async () => {
     setError("");
     setIsLoading(true);
     try {
-      const role = getRoleFromEmail(email);
-      if (!role) { setError("Email is not recognized"); return; }
-      if (!validateCredentials(email, password, role)) {
-        setError(`Invalid credentials for ${role === "admin" ? "Admin" : "Clerk"} access`);
-        return;
-      }
-      login(validUsers[role].email, password);
-      navigate(role === "admin" ? "/admin/dashboard" : "/clerk/dashboard");
-    } catch {
-      setError("Login failed. Please try again.");
+      const me = await login(email, password);
+      navigate(me.role === "admin" ? "/admin/dashboard" : "/clerk/dashboard");
+    } catch (err) {
+      setError(err.message || "Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }

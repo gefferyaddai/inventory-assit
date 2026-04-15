@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, ArrowLeft, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
-import { purchaseOrders as initialOrders, suppliers, getAllVariants } from "@/data/mockData";
+import { api } from "@/services/api";
 
 const STATUS_ORDER = ["Pending", "Approved", "Shipped", "Delivered"];
 
@@ -20,77 +20,172 @@ const statusClass = {
   Cancelled: "bg-red-50 text-red-600 border-red-200",
 };
 
+function normalizeOrder(o, items = null) {
+  return {
+    id:               o.OrderID,
+    supplierId:       o.SupplierID,
+    supplierName:     o.SupplierName || "",
+    warehouseId:      o.WarehouseID,
+    orderDate:        o.OrderDate ? new Date(o.OrderDate).toISOString().slice(0, 10) : "",
+    expectedDelivery: o.ExpectedDeliveryDate ? new Date(o.ExpectedDeliveryDate).toISOString().slice(0, 10) : "",
+    status:           o.Status,
+    totalAmount:      Number(o.TotalAmount) || 0,
+    items:            items ? items.map(normalizeItem) : [],
+  };
+}
+
+function normalizeItem(i) {
+  const qty  = Number(i.Quantity) || 0;
+  const cost = Number(i.UnitCost) || 0;
+  return {
+    productVariantId: i.ProductVariantID,
+    variantSku:       i.SKU || "",
+    productName:      i.Color ? `${i.ProductName} (${i.Color})` : (i.ProductName || ""),
+    quantity:         qty,
+    unitCost:         cost,
+    subtotal:         qty * cost,
+  };
+}
+
 export default function PurchaseOrdersPage() {
-  const [orders, setOrders] = useState(initialOrders);
+  const [orders, setOrders]           = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [suppliers, setSuppliers]     = useState([]);
+  const [warehouses, setWarehouses]   = useState([]);
+  const [allVariants, setAllVariants] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
-  const [viewingId, setViewingId] = useState(null);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [step, setStep] = useState(1);
-  const [cancelId, setCancelId] = useState(null);
+  const [viewingId, setViewingId]     = useState(null);
+  const [viewingOrder, setViewingOrder] = useState(null);
+  const [viewLoading, setViewLoading] = useState(false);
+  const [createOpen, setCreateOpen]   = useState(false);
+  const [step, setStep]               = useState(1);
+  const [cancelId, setCancelId]       = useState(null);
 
   // Create form state
-  const [newSupplierId, setNewSupplierId] = useState("");
-  const [newExpDate, setNewExpDate] = useState("");
-  const [newItems, setNewItems] = useState([]);
-  const [itemVariantId, setItemVariantId] = useState("");
-  const [itemQty, setItemQty] = useState("");
-  const [itemCost, setItemCost] = useState("");
+  const [newSupplierId, setNewSupplierId]   = useState("");
+  const [newWarehouseId, setNewWarehouseId] = useState("");
+  const [newExpDate, setNewExpDate]         = useState("");
+  const [newItems, setNewItems]             = useState([]);
+  const [itemVariantId, setItemVariantId]   = useState("");
+  const [itemQty, setItemQty]               = useState("");
+  const [itemCost, setItemCost]             = useState("");
 
-  const allVariants = getAllVariants();
+  const fetchOrders = async () => {
+    try {
+      const data = await api.get('/orders');
+      setOrders(data.map((o) => normalizeOrder(o)));
+    } catch {
+      toast.error('Failed to load purchase orders');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+    // Load reference data for create dialog
+    Promise.all([
+      api.get('/suppliers'),
+      api.get('/warehouses'),
+      api.get('/products/variants/all'),
+    ]).then(([s, w, v]) => {
+      setSuppliers(s.map((x) => ({ id: x.SupplierID, companyName: x.CompanyName })));
+      setWarehouses(w.map((x) => ({ id: x.WarehouseID, name: x.Name })));
+      setAllVariants(v);
+    }).catch(() => {});
+  }, []);
+
+  // Load full order detail when viewing
+  useEffect(() => {
+    if (!viewingId) { setViewingOrder(null); return; }
+    setViewLoading(true);
+    api.get(`/orders/${viewingId}`)
+      .then((data) => setViewingOrder(normalizeOrder(data, data.items || [])))
+      .catch(() => toast.error('Failed to load order details'))
+      .finally(() => setViewLoading(false));
+  }, [viewingId]);
+
   const filtered = orders.filter((o) => statusFilter === "all" || o.status === statusFilter);
 
   const resetCreate = () => {
-    setStep(1); setNewSupplierId(""); setNewExpDate(""); setNewItems([]);
-    setItemVariantId(""); setItemQty(""); setItemCost("");
+    setStep(1);
+    setNewSupplierId("");
+    setNewWarehouseId("");
+    setNewExpDate("");
+    setNewItems([]);
+    setItemVariantId("");
+    setItemQty("");
+    setItemCost("");
   };
 
   const addItem = () => {
-    const v = allVariants.find((va) => va.id === itemVariantId);
+    const v = allVariants.find((va) => String(va.id) === itemVariantId);
     if (!v) return;
-    const qty = Number(itemQty);
+    const qty  = Number(itemQty);
     const cost = Number(itemCost);
+    if (qty <= 0 || cost < 0) return;
     setNewItems((prev) => [...prev, {
-      productVariantId: v.id, variantSku: v.variantSku,
+      variantId:   v.id,
+      variantSku:  v.variantSku,
       productName: v.color ? `${v.productName} (${v.color})` : v.productName,
-      quantity: qty, unitCost: cost, subtotal: qty * cost,
+      quantity:    qty,
+      unitCost:    cost,
+      subtotal:    qty * cost,
     }]);
-    setItemVariantId(""); setItemQty(""); setItemCost("");
+    setItemVariantId("");
+    setItemQty("");
+    setItemCost("");
   };
 
-  const submitOrder = () => {
-    const supplier = suppliers.find((s) => s.id === newSupplierId);
-    const order = {
-      id: `PO-${String(orders.length + 1).padStart(3, "0")}`,
-      supplierId: newSupplierId,
-      supplierName: supplier?.companyName || "",
-      orderDate: new Date().toISOString().split("T")[0],
-      expectedDelivery: newExpDate,
-      status: "Pending",
-      totalAmount: newItems.reduce((sum, i) => sum + i.subtotal, 0),
-      items: newItems,
-    };
-    setOrders((prev) => [order, ...prev]);
-    toast.success(`Purchase order ${order.id} created`);
-    setCreateOpen(false);
-    resetCreate();
+  const submitOrder = async () => {
+    try {
+      await api.post('/orders', {
+        supplierId:  Number(newSupplierId),
+        warehouseId: Number(newWarehouseId),
+        expectedDeliveryDate: newExpDate || null,
+        items: newItems.map((i) => ({ variantId: i.variantId, quantity: i.quantity, unitCost: i.unitCost })),
+      });
+      toast.success("Purchase order created");
+      setCreateOpen(false);
+      resetCreate();
+      fetchOrders();
+    } catch (err) {
+      toast.error(err.message || 'Failed to create order');
+    }
   };
 
-  const updateStatus = (orderId, newStatus) => {
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: newStatus } : o));
-    toast.success(`Order ${newStatus.toLowerCase()}`);
+  const updateStatus = async (orderId, newStatus) => {
+    try {
+      await api.patch(`/orders/${orderId}/status`, { status: newStatus });
+      toast.success(`Order ${newStatus.toLowerCase()}`);
+      fetchOrders();
+      if (viewingId === orderId) {
+        // Refresh detail view
+        api.get(`/orders/${orderId}`)
+          .then((data) => setViewingOrder(normalizeOrder(data, data.items || [])));
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to update status');
+    }
   };
 
-  const cancelOrder = () => {
+  const cancelOrder = async () => {
     if (!cancelId) return;
-    updateStatus(cancelId, "Cancelled");
-    setCancelId(null);
+    try {
+      await api.delete(`/orders/${cancelId}`);
+      toast.success("Order cancelled");
+      setCancelId(null);
+      fetchOrders();
+      if (viewingId === cancelId) setViewingId(null);
+    } catch (err) {
+      toast.error(err.message || 'Failed to cancel order');
+    }
   };
-
-  const viewing = viewingId ? orders.find((o) => o.id === viewingId) : null;
 
   // ── Detail view ─────────────────────────────────────────────────────────────
-  if (viewing) {
-    const currentIdx = STATUS_ORDER.indexOf(viewing.status);
+  if (viewingId) {
+    const viewing = viewingOrder;
+    const currentIdx = viewing ? STATUS_ORDER.indexOf(viewing.status) : -1;
 
     return (
       <div className="space-y-4">
@@ -101,95 +196,105 @@ export default function PurchaseOrdersPage() {
           <ArrowLeft className="h-4 w-4" /> Back to Purchase Orders
         </button>
 
-        {/* Order info + stepper */}
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5 space-y-5">
-          <h3 className="text-base font-semibold text-gray-900">Order {viewing.id}</h3>
-
-          <div className="grid sm:grid-cols-3 gap-3 text-sm">
-            <div><span className="text-gray-400">Supplier:</span> <span className="text-gray-700">{viewing.supplierName}</span></div>
-            <div><span className="text-gray-400">Order Date:</span> <span className="text-gray-700">{viewing.orderDate}</span></div>
-            <div><span className="text-gray-400">Expected:</span> <span className="text-gray-700">{viewing.expectedDelivery}</span></div>
+        {viewLoading || !viewing ? (
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-8 text-center text-gray-400">
+            {viewLoading ? "Loading…" : "Order not found"}
           </div>
+        ) : (
+          <>
+            {/* Order info + stepper */}
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5 space-y-5">
+              <h3 className="text-base font-semibold text-gray-900">Order #{viewing.id}</h3>
 
-          {/* Status stepper */}
-          {viewing.status !== "Cancelled" && (
-            <div className="flex items-center gap-1 flex-wrap py-1">
-              {STATUS_ORDER.map((s, i) => (
-                <div key={s} className="flex items-center gap-1">
-                  <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold
-                    ${i <= currentIdx ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-400"}`}>
-                    {i + 1}
-                  </div>
-                  <span className={`text-xs ${i <= currentIdx ? "text-gray-800 font-medium" : "text-gray-400"}`}>{s}</span>
-                  {i < STATUS_ORDER.length - 1 && (
-                    <div className={`h-0.5 w-6 mx-1 ${i < currentIdx ? "bg-blue-600" : "bg-gray-200"}`} />
-                  )}
+              <div className="grid sm:grid-cols-3 gap-3 text-sm">
+                <div><span className="text-gray-400">Supplier:</span> <span className="text-gray-700">{viewing.supplierName}</span></div>
+                <div><span className="text-gray-400">Order Date:</span> <span className="text-gray-700">{viewing.orderDate}</span></div>
+                <div><span className="text-gray-400">Expected:</span> <span className="text-gray-700">{viewing.expectedDelivery || "—"}</span></div>
+              </div>
+
+              {/* Status stepper */}
+              {viewing.status !== "Cancelled" && (
+                <div className="flex items-center gap-1 flex-wrap py-1">
+                  {STATUS_ORDER.map((s, i) => (
+                    <div key={s} className="flex items-center gap-1">
+                      <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold
+                        ${i <= currentIdx ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-400"}`}>
+                        {i + 1}
+                      </div>
+                      <span className={`text-xs ${i <= currentIdx ? "text-gray-800 font-medium" : "text-gray-400"}`}>{s}</span>
+                      {i < STATUS_ORDER.length - 1 && (
+                        <div className={`h-0.5 w-6 mx-1 ${i < currentIdx ? "bg-blue-600" : "bg-gray-200"}`} />
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              {/* Action buttons */}
+              <div className="flex gap-2 flex-wrap">
+                {viewing.status === "Pending" && (
+                  <button onClick={() => updateStatus(viewing.id, "Approved")}
+                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+                    Approve
+                  </button>
+                )}
+                {viewing.status === "Approved" && (
+                  <button onClick={() => updateStatus(viewing.id, "Shipped")}
+                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+                    Mark Shipped
+                  </button>
+                )}
+                {viewing.status === "Shipped" && (
+                  <button onClick={() => updateStatus(viewing.id, "Delivered")}
+                    className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 transition-colors">
+                    Mark Delivered
+                  </button>
+                )}
+                {viewing.status !== "Delivered" && viewing.status !== "Cancelled" && (
+                  <button onClick={() => setCancelId(viewing.id)}
+                    className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+                    Cancel Order
+                  </button>
+                )}
+              </div>
             </div>
-          )}
 
-          {/* Action buttons */}
-          <div className="flex gap-2 flex-wrap">
-            {viewing.status === "Pending" && (
-              <button onClick={() => updateStatus(viewing.id, "Approved")}
-                className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
-                Approve
-              </button>
-            )}
-            {viewing.status === "Approved" && (
-              <button onClick={() => updateStatus(viewing.id, "Shipped")}
-                className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
-                Mark Shipped
-              </button>
-            )}
-            {viewing.status === "Shipped" && (
-              <button onClick={() => updateStatus(viewing.id, "Delivered")}
-                className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 transition-colors">
-                Mark Delivered
-              </button>
-            )}
-            {viewing.status !== "Delivered" && viewing.status !== "Cancelled" && (
-              <button onClick={() => setCancelId(viewing.id)}
-                className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
-                Cancel Order
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Line items */}
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <h4 className="text-sm font-semibold text-gray-800">Line Items</h4>
-          </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                <th className="px-4 py-3">SKU</th>
-                <th className="px-4 py-3">Product</th>
-                <th className="px-4 py-3 text-right">Qty</th>
-                <th className="px-4 py-3 text-right">Unit Cost</th>
-                <th className="px-4 py-3 text-right">Subtotal</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {(viewing.items || []).map((item, i) => (
-                <tr key={i} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono text-xs text-gray-600">{item.variantSku}</td>
-                  <td className="px-4 py-3 text-gray-800">{item.productName}</td>
-                  <td className="px-4 py-3 text-right font-mono text-gray-700">{item.quantity}</td>
-                  <td className="px-4 py-3 text-right text-gray-700">${item.unitCost.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-right font-medium text-gray-800">${item.subtotal.toFixed(2)}</td>
-                </tr>
-              ))}
-              <tr className="bg-gray-50 border-t border-gray-200">
-                <td colSpan={4} className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Total</td>
-                <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">${viewing.totalAmount.toFixed(2)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+            {/* Line items */}
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="px-4 py-3 border-b border-gray-100">
+                <h4 className="text-sm font-semibold text-gray-800">Line Items</h4>
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                    <th className="px-4 py-3">SKU</th>
+                    <th className="px-4 py-3">Product</th>
+                    <th className="px-4 py-3 text-right">Qty</th>
+                    <th className="px-4 py-3 text-right">Unit Cost</th>
+                    <th className="px-4 py-3 text-right">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {viewing.items.length === 0 ? (
+                    <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">No line items</td></tr>
+                  ) : viewing.items.map((item, i) => (
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-600">{item.variantSku}</td>
+                      <td className="px-4 py-3 text-gray-800">{item.productName}</td>
+                      <td className="px-4 py-3 text-right font-mono text-gray-700">{item.quantity}</td>
+                      <td className="px-4 py-3 text-right text-gray-700">${item.unitCost.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right font-medium text-gray-800">${item.subtotal.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-gray-50 border-t border-gray-200">
+                    <td colSpan={4} className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Total</td>
+                    <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">${viewing.totalAmount.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
         <ConfirmDialog
           open={!!cancelId}
@@ -204,6 +309,8 @@ export default function PurchaseOrdersPage() {
   }
 
   // ── List view ────────────────────────────────────────────────────────────────
+  const selectedSupplier  = suppliers.find((s) => String(s.id) === newSupplierId);
+
   return (
     <div className="space-y-4">
       {/* Toolbar */}
@@ -244,15 +351,18 @@ export default function PurchaseOrdersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filtered.length === 0 && (
+            {loading && (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+            )}
+            {!loading && filtered.length === 0 && (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No orders found.</td></tr>
             )}
             {filtered.map((o) => (
               <tr key={o.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-4 py-3 font-mono text-xs text-gray-600">{o.id}</td>
+                <td className="px-4 py-3 font-mono text-xs text-gray-600">#{o.id}</td>
                 <td className="hidden sm:table-cell px-4 py-3 text-gray-800">{o.supplierName}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-gray-500">{o.orderDate}</td>
-                <td className="hidden lg:table-cell px-4 py-3 text-gray-500">{o.expectedDelivery}</td>
+                <td className="hidden lg:table-cell px-4 py-3 text-gray-500">{o.expectedDelivery || "—"}</td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${statusClass[o.status] || ""}`}>
                     {o.status}
@@ -278,8 +388,8 @@ export default function PurchaseOrdersPage() {
         <button
           onClick={() => {
             const data = filtered.map((o) => ({
-              "Order ID": o.id, Supplier: o.supplierName, "Order Date": o.orderDate,
-              "Expected Delivery": o.expectedDelivery, Status: o.status, Amount: o.totalAmount,
+              "Order ID": `#${o.id}`, Supplier: o.supplierName, "Order Date": o.orderDate,
+              "Expected Delivery": o.expectedDelivery, Status: o.status, Amount: o.totalAmount.toFixed(2),
             }));
             const ws = XLSX.utils.json_to_sheet(data);
             const wb = XLSX.utils.book_new();
@@ -299,23 +409,34 @@ export default function PurchaseOrdersPage() {
             <DialogTitle>Create Purchase Order — Step {step}/3</DialogTitle>
           </DialogHeader>
 
-          {/* Step 1: Supplier + delivery date */}
+          {/* Step 1: Supplier + Warehouse + delivery date */}
           {step === 1 && (
             <div className="grid gap-4 py-2">
               <div className="space-y-1.5">
                 <Label>Supplier</Label>
-                <div className="w-full">
-                  <Select value={newSupplierId} onValueChange={setNewSupplierId}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select supplier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {suppliers.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>{s.companyName}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Select value={newSupplierId} onValueChange={setNewSupplierId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select supplier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map((s) => (
+                      <SelectItem key={s.id} value={String(s.id)}>{s.companyName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Destination Warehouse</Label>
+                <Select value={newWarehouseId} onValueChange={setNewWarehouseId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select warehouse" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {warehouses.map((w) => (
+                      <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Expected Delivery Date</Label>
@@ -335,8 +456,9 @@ export default function PurchaseOrdersPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {allVariants.map((v) => (
-                        <SelectItem key={v.id} value={v.id}>
+                        <SelectItem key={v.id} value={String(v.id)}>
                           {v.color ? `${v.productName} (${v.color})` : v.productName}
+                          {v.variantSku ? ` — ${v.variantSku}` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -382,8 +504,9 @@ export default function PurchaseOrdersPage() {
           {step === 3 && (
             <div className="space-y-4 py-2">
               <div className="rounded-lg bg-gray-50 border border-gray-100 p-4 text-sm space-y-2">
-                <div><span className="text-gray-400">Supplier:</span> <span className="text-gray-800 font-medium">{suppliers.find((s) => s.id === newSupplierId)?.companyName}</span></div>
-                <div><span className="text-gray-400">Expected Delivery:</span> <span className="text-gray-800">{newExpDate}</span></div>
+                <div><span className="text-gray-400">Supplier:</span> <span className="text-gray-800 font-medium">{selectedSupplier?.companyName}</span></div>
+                <div><span className="text-gray-400">Warehouse:</span> <span className="text-gray-800">{warehouses.find((w) => String(w.id) === newWarehouseId)?.name || "—"}</span></div>
+                <div><span className="text-gray-400">Expected Delivery:</span> <span className="text-gray-800">{newExpDate || "—"}</span></div>
                 <div><span className="text-gray-400">Line Items:</span> <span className="text-gray-800">{newItems.length}</span></div>
                 <div className="pt-1 text-lg font-bold text-gray-900">
                   Total: ${newItems.reduce((s, i) => s + i.subtotal, 0).toFixed(2)}
@@ -399,7 +522,10 @@ export default function PurchaseOrdersPage() {
             {step < 3 && (
               <button
                 onClick={() => setStep(step + 1)}
-                disabled={(step === 1 && (!newSupplierId || !newExpDate)) || (step === 2 && newItems.length === 0)}
+                disabled={
+                  (step === 1 && (!newSupplierId || !newWarehouseId)) ||
+                  (step === 2 && newItems.length === 0)
+                }
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 Next
@@ -416,6 +542,15 @@ export default function PurchaseOrdersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!cancelId}
+        onOpenChange={() => setCancelId(null)}
+        title="Cancel Order"
+        description="Are you sure you want to cancel this purchase order? This cannot be undone."
+        onConfirm={cancelOrder}
+        confirmLabel="Cancel Order"
+      />
     </div>
   );
 }

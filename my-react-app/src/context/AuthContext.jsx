@@ -1,39 +1,43 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {jwtDecode} from 'jwt-decode';
+import { loginRequest, getMeRequest } from '../services/authService';
 
-const MOCK_USERS = [
-  { id: 1, name: 'Kevin', email: 'kevin@admin.com', password: 'admin123', role: 'admin', isActive: true },
-  { id: 2, name: 'Cj Obi', email: 'cj@clerk.com', password: 'clerk123', role: 'clerk', isActive: true },
-];
+function normalizeRole(role) {
+  if (role === 'Admin') return 'admin';
+  if (role === 'StockClerk') return 'clerk';
+  return role;
+}
 
-const STORAGE_KEY = 'auth_user';
+const STORAGE_KEY = 'auth_token';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // On mount, restore session from stored token
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      setUser(JSON.parse(stored));
+    const token = localStorage.getItem(STORAGE_KEY);
+    if (!token) {
+      setLoading(false);
+      return;
     }
+    getMeRequest(token)
+      .then((me) => {
+        if (me) setUser({ ...me, role: normalizeRole(me.role), token });
+        else localStorage.removeItem(STORAGE_KEY);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  function login(email, password) {
-    const match = MOCK_USERS.find(
-      (u) => u.email === email && u.password === password && u.isActive
-    );
-    if (!match) {
-      throw new Error('Invalid credentials');
-    }
-    const { password: _, ...safeUser } = match;
-    setUser(safeUser);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(safeUser));
-    // assign jwt here if implemented
-    return safeUser;
+  async function login(email, password) {
+    const { token, user: me } = await loginRequest(email, password);
+    const normalized = { ...me, role: normalizeRole(me.role), token };
+    localStorage.setItem(STORAGE_KEY, token);
+    setUser(normalized);
+    return normalized;
   }
 
   function logout() {
@@ -44,19 +48,20 @@ export function AuthProvider({ children }) {
   }
 
   function requireAuth() {
-    if (!user) {
-      navigate('/login');
-    }
+    if (!user) navigate('/login');
   }
 
   const value = useMemo(() => ({
     user,
+    loading,
     login,
     logout,
     requireAuth,
     isAuthenticated: !!user,
     role: user?.role || null,
-  }), [user]);
+  }), [user, loading]);
+
+  if (loading) return null;
 
   return (
     <AuthContext.Provider value={value}>

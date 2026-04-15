@@ -1,6 +1,5 @@
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
-import { products, categories, warehouses } from "@/data/mockData";
 
 export interface ImportRow {
   rowNum: number;
@@ -27,13 +26,24 @@ export interface ImportRow {
   errors: string[];
 }
 
+export interface ValidationContext {
+  categories: Array<{ CategoryID: number; CategoryName: string }>;
+  warehouses: Array<{ WarehouseID: number; Name: string }>;
+  products: Array<{ ProductID: number; SKU: string }>;
+}
+
 const REQUIRED_COLUMNS = [
   "product_sku", "product_name", "category_name", "unit_price", "cost_price",
   "reorder_point", "max_stock_level", "unit_of_measure", "variant_sku",
   "warehouse_name", "quantity_on_hand",
 ];
 
-function validateRow(row: Record<string, string>, rowNum: number, seenVariantSkus: Set<string>): ImportRow {
+function validateRow(
+  row: Record<string, string>,
+  rowNum: number,
+  seenVariantSkus: Set<string>,
+  ctx: ValidationContext
+): ImportRow {
   const errors: string[] = [];
 
   for (const col of REQUIRED_COLUMNS) {
@@ -72,11 +82,14 @@ function validateRow(row: Record<string, string>, rowNum: number, seenVariantSku
     seenVariantSkus.add(vsku);
   }
 
-  const isNewCategory =
-    row["category_name"] &&
-    !categories.find((c) => c.name.toLowerCase() === row["category_name"].trim().toLowerCase());
+  // Validate against live data context
+  const categoryName = row["category_name"]?.trim() || "";
+  const isNewCategory = categoryName !== "" &&
+    !ctx.categories.find((c) => c.CategoryName.toLowerCase() === categoryName.toLowerCase());
 
-  if (row["warehouse_name"] && !warehouses.find((w) => w.name.toLowerCase() === row["warehouse_name"].trim().toLowerCase())) {
+  if (row["warehouse_name"] && !ctx.warehouses.find(
+    (w) => w.Name.toLowerCase() === row["warehouse_name"].trim().toLowerCase()
+  )) {
     errors.push(`Warehouse '${row["warehouse_name"]}' not found`);
   }
 
@@ -86,12 +99,11 @@ function validateRow(row: Record<string, string>, rowNum: number, seenVariantSku
   } else if (isNewCategory) {
     importStatus = "new_category";
   } else {
-    const existingProduct = products.find((p) => p.sku.toLowerCase() === row["product_sku"]?.trim().toLowerCase());
+    const existingProduct = ctx.products.find(
+      (p) => p.SKU.toLowerCase() === row["product_sku"]?.trim().toLowerCase()
+    );
     if (existingProduct) {
-      const existingVariant = existingProduct.variants.find(
-        (v) => v.variantSku.toLowerCase() === vsku?.toLowerCase()
-      );
-      importStatus = existingVariant ? "update" : "new";
+      importStatus = "update";
     }
   }
 
@@ -99,7 +111,7 @@ function validateRow(row: Record<string, string>, rowNum: number, seenVariantSku
     rowNum,
     product_sku: row["product_sku"]?.trim() || "",
     product_name: row["product_name"]?.trim() || "",
-    category_name: row["category_name"]?.trim() || "",
+    category_name: categoryName,
     unit_price: row["unit_price"]?.trim() || "",
     cost_price: row["cost_price"]?.trim() || "",
     reorder_point: row["reorder_point"]?.trim() || "",
@@ -121,7 +133,7 @@ function validateRow(row: Record<string, string>, rowNum: number, seenVariantSku
   };
 }
 
-export function parseCSV(file: File): Promise<ImportRow[]> {
+export function parseCSV(file: File, ctx: ValidationContext): Promise<ImportRow[]> {
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,
@@ -130,7 +142,7 @@ export function parseCSV(file: File): Promise<ImportRow[]> {
       complete: (results) => {
         const seenVariantSkus = new Set<string>();
         const rows = (results.data as Record<string, string>[]).map((row, i) =>
-          validateRow(row, i + 2, seenVariantSkus)
+          validateRow(row, i + 2, seenVariantSkus, ctx)
         );
         resolve(rows);
       },
@@ -139,7 +151,7 @@ export function parseCSV(file: File): Promise<ImportRow[]> {
   });
 }
 
-export function parseXLSX(file: File): Promise<ImportRow[]> {
+export function parseXLSX(file: File, ctx: ValidationContext): Promise<ImportRow[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -156,7 +168,7 @@ export function parseXLSX(file: File): Promise<ImportRow[]> {
           return newRow;
         });
         const seenVariantSkus = new Set<string>();
-        const rows = normalized.map((row, i) => validateRow(row, i + 2, seenVariantSkus));
+        const rows = normalized.map((row, i) => validateRow(row, i + 2, seenVariantSkus, ctx));
         resolve(rows);
       } catch (err) {
         reject(err);
@@ -167,10 +179,10 @@ export function parseXLSX(file: File): Promise<ImportRow[]> {
   });
 }
 
-export function parseImportFile(file: File): Promise<ImportRow[]> {
+export function parseImportFile(file: File, ctx: ValidationContext): Promise<ImportRow[]> {
   const ext = file.name.split(".").pop()?.toLowerCase();
-  if (ext === "csv") return parseCSV(file);
-  if (ext === "xlsx" || ext === "xls") return parseXLSX(file);
+  if (ext === "csv") return parseCSV(file, ctx);
+  if (ext === "xlsx" || ext === "xls") return parseXLSX(file, ctx);
   return Promise.reject(new Error("Unsupported file type. Please use .csv or .xlsx"));
 }
 

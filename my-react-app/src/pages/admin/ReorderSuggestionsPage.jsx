@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
-import { reorderSuggestions as initialSuggestions } from "@/data/mockData";
+import { api } from "@/services/api";
 
 const statusClass = (s) => {
   if (s === "Pending")   return "bg-yellow-50 text-yellow-700 border-yellow-200";
@@ -12,23 +12,68 @@ const statusClass = (s) => {
   return "bg-gray-100 text-gray-500 border-gray-200";
 };
 
+function normalizeSuggestion(r) {
+  return {
+    id: r.SuggestionID,
+    productName: r.ProductName || "",
+    warehouseName: r.WarehouseName || "",
+    suggestedQty: Number(r.SuggestedQuantity) || 0,
+    preferredSupplier: r.SupplierName || "—",
+    generatedAt: r.GeneratedAt || new Date().toISOString(),
+    status: r.Status || "Pending",
+  };
+}
+
 export default function ReorderSuggestionsPage() {
-  const [items, setItems] = useState(initialSuggestions);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [dismissId, setDismissId] = useState(null);
+  const [converting, setConverting] = useState(null);
 
-  const filtered = items.filter((r) => statusFilter === "all" || r.status === statusFilter);
+  useEffect(() => {
+    load();
+  }, [statusFilter]);
 
-  const convert = (id) => {
-    setItems((prev) => prev.map((r) => r.id === id ? { ...r, status: "Converted" } : r));
-    toast.success(`Suggestion ${id} converted to PO`);
+  async function load() {
+    setLoading(true);
+    try {
+      const params = statusFilter !== "all" ? `?status=${statusFilter}` : "";
+      const data = await api.get(`/reorders${params}`);
+      setItems(data.map(normalizeSuggestion));
+    } catch (err) {
+      toast.error("Failed to load suggestions");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const filtered = items;
+
+  const convert = async (id) => {
+    setConverting(id);
+    try {
+      await api.patch(`/reorders/${id}/convert`, {});
+      toast.success("Converted to purchase order");
+      load();
+    } catch (err) {
+      toast.error(err.message || "Failed to convert");
+    } finally {
+      setConverting(null);
+    }
   };
 
-  const dismiss = () => {
+  const dismiss = async () => {
     if (!dismissId) return;
-    setItems((prev) => prev.map((r) => r.id === dismissId ? { ...r, status: "Dismissed" } : r));
-    toast.success("Suggestion dismissed");
-    setDismissId(null);
+    try {
+      await api.patch(`/reorders/${dismissId}/dismiss`, {});
+      toast.success("Suggestion dismissed");
+      load();
+    } catch (err) {
+      toast.error(err.message || "Failed to dismiss");
+    } finally {
+      setDismissId(null);
+    }
   };
 
   const exportXLSX = () => {
@@ -80,12 +125,17 @@ export default function ReorderSuggestionsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filtered.length === 0 && (
+            {loading && (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">Loading…</td>
+              </tr>
+            )}
+            {!loading && filtered.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-gray-400">No suggestions found.</td>
               </tr>
             )}
-            {filtered.map((r) => (
+            {!loading && filtered.map((r) => (
               <tr key={r.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3 font-medium text-gray-900">{r.productName}</td>
                 <td className="hidden sm:table-cell px-4 py-3 text-gray-500">{r.warehouseName}</td>
@@ -104,9 +154,10 @@ export default function ReorderSuggestionsPage() {
                     <div className="flex justify-end gap-1">
                       <button
                         onClick={() => convert(r.id)}
-                        className="rounded-md px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors"
+                        disabled={converting === r.id}
+                        className="rounded-md px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50"
                       >
-                        Convert
+                        {converting === r.id ? "…" : "Convert"}
                       </button>
                       <button
                         onClick={() => setDismissId(r.id)}

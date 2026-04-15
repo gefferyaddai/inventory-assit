@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Plus, ArrowLeft, MoreHorizontal, Download, Search } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,35 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { warehouses as initialWarehouses, warehouseStocks } from "@/data/mockData";
+import { api } from "@/services/api";
 import { TAX_REGIONS } from "@/data/taxRegions";
+
+function normalizeWarehouse(w) {
+  return {
+    id:            w.WarehouseID,
+    name:          w.Name,
+    location:      w.Address || "",
+    address:       w.Address || "",
+    capacity:      Number(w.Capacity) || 0,
+    managerName:   w.ManagerName || "",
+    taxRegion:     w.TaxRegion || "",
+    assignedAdmins: [],
+  };
+}
+
+function normalizeStock(s) {
+  return {
+    productVariantId: s.ProductVariantID,
+    variantSku:       s.SKU || "",
+    productName:      s.ProductName || "",
+    color:            s.Color || "",
+    size:             s.Size || "",
+    qtyOnHand:        Number(s.QuantityOnHand) || 0,
+    binLocation:      s.BinLocation || "",
+    reorderPoint:     Number(s.ReorderPoint) || 0,
+    status:           s.status || "In Stock",
+  };
+}
 
 const stockStatusClass = (s) => {
   if (s === "Low Stock") return "bg-yellow-50 text-yellow-700 border-yellow-200";
@@ -71,11 +98,36 @@ function TaxRegionSelect({ value, onChange }) {
 }
 
 export default function WarehousesPage() {
-  const [items, setItems] = useState(initialWarehouses);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [viewingId, setViewingId] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [items, setItems]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [formOpen, setFormOpen]     = useState(false);
+  const [editing, setEditing]       = useState(null);
+  const [viewingId, setViewingId]   = useState(null);
+  const [form, setForm]             = useState(EMPTY_FORM);
+  const [stockItems, setStockItems] = useState([]);
+  const [stockLoading, setStockLoading] = useState(false);
+
+  const fetchWarehouses = async () => {
+    try {
+      const data = await api.get('/warehouses');
+      setItems(data.map(normalizeWarehouse));
+    } catch {
+      toast.error('Failed to load warehouses');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchWarehouses(); }, []);
+
+  useEffect(() => {
+    if (!viewingId) { setStockItems([]); return; }
+    setStockLoading(true);
+    api.get(`/warehouses/${viewingId}/stock`)
+      .then((data) => setStockItems(data.map(normalizeStock)))
+      .catch(() => toast.error('Failed to load stock'))
+      .finally(() => setStockLoading(false));
+  }, [viewingId]);
 
   const openAdd = () => { setEditing(null); setForm(EMPTY_FORM); setFormOpen(true); };
   const openEdit = (w) => {
@@ -90,37 +142,41 @@ export default function WarehousesPage() {
     setFormOpen(true);
   };
 
-  const save = () => {
+  const save = async () => {
     if (!form.name.trim()) { toast.error("Warehouse name is required"); return; }
-    if (editing) {
-      setItems((prev) => prev.map((w) =>
-        w.id === editing.id
-          ? { ...w, name: form.name, address: form.address, capacity: Number(form.capacity), managerName: form.managerName, taxRegion: form.taxRegion }
-          : w
-      ));
-      toast.success("Warehouse updated");
-    } else {
-      setItems((prev) => [...prev, {
-        id: `wh-${Date.now()}`, name: form.name, address: form.address,
-        capacity: Number(form.capacity), managerName: form.managerName,
-        location: form.address, assignedAdmins: [],
-        taxRegion: form.taxRegion,
-      }]);
-      toast.success("Warehouse added");
+    try {
+      const payload = {
+        name:        form.name.trim(),
+        address:     form.address.trim(),
+        capacity:    Number(form.capacity) || null,
+        managerName: form.managerName.trim(),
+        taxRegion:   form.taxRegion || null,
+      };
+      if (editing) {
+        await api.put(`/warehouses/${editing.id}`, payload);
+        toast.success("Warehouse updated");
+      } else {
+        await api.post('/warehouses', payload);
+        toast.success("Warehouse added");
+      }
+      setFormOpen(false);
+      fetchWarehouses();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save warehouse');
     }
-    setFormOpen(false);
   };
 
   const viewing = viewingId ? items.find((w) => w.id === viewingId) : null;
-  const viewingStocks = viewingId ? (warehouseStocks[viewingId] || []) : [];
   const viewingTaxRegion = viewing?.taxRegion
     ? TAX_REGIONS.find((r) => r.provinceCode === viewing.taxRegion)
     : null;
 
   const exportXLSX = () => {
     const data = items.map((w) => ({
-      Name: w.name, Address: w.address, Capacity: w.capacity,
-      Manager: w.managerName, Admins: (w.assignedAdmins || []).join(", "),
+      Name:         w.name,
+      Address:      w.address,
+      Capacity:     w.capacity,
+      Manager:      w.managerName,
       "Tax Region": w.taxRegion || "—",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -144,10 +200,9 @@ export default function WarehousesPage() {
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
           <h3 className="text-base font-semibold text-gray-900 mb-4">{viewing.name}</h3>
           <div className="grid sm:grid-cols-2 gap-3 text-sm">
-            <div><span className="text-gray-400">Address:</span> <span className="text-gray-700">{viewing.address || viewing.location}</span></div>
+            <div><span className="text-gray-400">Address:</span> <span className="text-gray-700">{viewing.address || "—"}</span></div>
             <div><span className="text-gray-400">Capacity:</span> <span className="text-gray-700">{(viewing.capacity || 0).toLocaleString()} units</span></div>
             <div><span className="text-gray-400">Manager:</span> <span className="text-gray-700">{viewing.managerName || "—"}</span></div>
-            <div><span className="text-gray-400">Admins:</span> <span className="text-gray-700">{(viewing.assignedAdmins || []).join(", ") || "None"}</span></div>
             <div className="sm:col-span-2">
               <span className="text-gray-400">Tax Region:</span>{" "}
               {viewingTaxRegion ? (
@@ -178,14 +233,23 @@ export default function WarehousesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {viewingStocks.length === 0 ? (
+              {stockLoading && (
+                <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">Loading…</td></tr>
+              )}
+              {!stockLoading && stockItems.length === 0 && (
                 <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">No stock records</td></tr>
-              ) : viewingStocks.map((s) => (
+              )}
+              {stockItems.map((s) => (
                 <tr key={s.productVariantId} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-mono text-xs text-gray-600">{s.variantSku}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900">{s.productName}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">
+                    {s.productName}
+                    {(s.color || s.size) && (
+                      <span className="ml-1.5 text-xs text-gray-400">{[s.color, s.size].filter(Boolean).join(" · ")}</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right font-mono text-gray-700">{s.qtyOnHand}</td>
-                  <td className="hidden md:table-cell px-4 py-3 text-gray-500">{s.binLocation}</td>
+                  <td className="hidden md:table-cell px-4 py-3 text-gray-500">{s.binLocation || "—"}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${stockStatusClass(s.status)}`}>
                       {s.status}
@@ -229,7 +293,10 @@ export default function WarehousesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {items.length === 0 && (
+            {loading && (
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+            )}
+            {!loading && items.length === 0 && (
               <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No warehouses yet.</td></tr>
             )}
             {items.map((w) => {
@@ -237,7 +304,7 @@ export default function WarehousesPage() {
               return (
                 <tr key={w.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 font-medium text-gray-900">{w.name}</td>
-                  <td className="hidden sm:table-cell px-4 py-3 text-gray-500">{w.location}</td>
+                  <td className="hidden sm:table-cell px-4 py-3 text-gray-500">{w.location || "—"}</td>
                   <td className="px-4 py-3 text-right font-mono text-gray-700">{(w.capacity || 0).toLocaleString()}</td>
                   <td className="hidden md:table-cell px-4 py-3 text-gray-500">{w.managerName || "—"}</td>
                   <td className="hidden lg:table-cell px-4 py-3 text-gray-500">
