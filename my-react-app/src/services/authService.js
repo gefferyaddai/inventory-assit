@@ -22,5 +22,13 @@ export async function getMeRequest(token) {
   });
 
   if (!res.ok) return null;
-  return res.json();
+  const me = await res.json();
+
+  // Normalize DB column names to match the login response shape
+  return {
+    id:    me.UserID,
+    name:  `${me.FirstName} ${me.LastName}`,
+    email: me.Email,
+    role:  me.Role,
+  };
 }

@@ -2,6 +2,12 @@ import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginRequest, getMeRequest } from '../services/authService';
 
+function normalizeRole(role) {
+  if (role === 'Admin') return 'admin';
+  if (role === 'StockClerk') return 'clerk';
+  return role;
+}
+
 const STORAGE_KEY = 'auth_token';
 
 const AuthContext = createContext(null);
@@ -20,7 +26,7 @@ export function AuthProvider({ children }) {
     }
     getMeRequest(token)
       .then((me) => {
-        if (me) setUser({ ...me, token });
+        if (me) setUser({ ...me, role: normalizeRole(me.role), token });
         else localStorage.removeItem(STORAGE_KEY);
       })
       .finally(() => setLoading(false));
@@ -28,9 +34,10 @@ export function AuthProvider({ children }) {
 
   async function login(email, password) {
     const { token, user: me } = await loginRequest(email, password);
+    const normalized = { ...me, role: normalizeRole(me.role), token };
     localStorage.setItem(STORAGE_KEY, token);
-    setUser({ ...me, token });
-    return me;
+    setUser(normalized);
+    return normalized;
   }
 
   function logout() {
@@ -53,8 +60,10 @@ export function AuthProvider({ children }) {
     role: user?.role || null,
   }), [user, loading]);
 
+  if (loading) return null;
+
   return (
-    <AuthContext.Provider value={loading ? null : value}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
