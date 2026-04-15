@@ -37,7 +37,7 @@ exports.dismiss = async (req, res) => {
 };
 
 exports.convert = async (req, res) => {
-  const { supplierId, variantId } = req.body;
+  const { supplierId } = req.body;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -49,13 +49,23 @@ exports.convert = async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Suggestion not found' });
     const suggestion = rows[0];
 
+    const finalSupplierId = supplierId || suggestion.SupplierID;
+    if (!finalSupplierId) return res.status(400).json({ error: 'Supplier required' });
+
+    // Auto-select first active variant for the product
+    const [variants] = await conn.query(
+      'SELECT VariantID FROM ProductVariant WHERE ProductID = ? AND IsActive = 1 LIMIT 1',
+      [suggestion.ProductID]
+    );
+    if (!variants.length) return res.status(400).json({ error: 'No active variants for this product' });
+
     const [orderResult] = await conn.query(
       'INSERT INTO PurchaseOrder (SupplierID, WarehouseID, TotalAmount, Status, UserID) VALUES (?, ?, 0, ?, ?)',
-      [supplierId, suggestion.WarehouseID, 'Pending', req.user.userId]
+      [finalSupplierId, suggestion.WarehouseID, 'Pending', req.user.userId]
     );
     await conn.query(
       'INSERT INTO OrderItem (OrderID, ProductVariantID, Quantity, UnitCost) VALUES (?, ?, ?, 0)',
-      [orderResult.insertId, variantId, suggestion.SuggestedQuantity]
+      [orderResult.insertId, variants[0].VariantID, suggestion.SuggestedQuantity]
     );
     await conn.query(
       "UPDATE ReorderSuggestion SET Status = 'Converted' WHERE SuggestionID = ?",

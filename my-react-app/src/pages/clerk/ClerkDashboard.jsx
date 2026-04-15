@@ -1,14 +1,11 @@
+import { useState, useEffect } from "react";
 import { Package, AlertTriangle, ClipboardList, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { warehouseStocks, transactions } from "@/data/mockData";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { api } from "@/services/api";
+import { toast } from "sonner";
 import * as XLSX from "xlsx";
-
-// Clerk is assigned to Main Warehouse (W1) in mock data
-const CLERK_WAREHOUSE_NAME = "Main Warehouse";
-const stocks = warehouseStocks["W1"] || [];
-const lowStockItems = stocks.filter((s) => s.status === "Low Stock");
-const totalItems = stocks.reduce((sum, s) => sum + s.qtyOnHand, 0);
 
 const txnBadgeClass = {
   Sale:       "bg-accent/10 text-accent border-accent/20",
@@ -16,8 +13,6 @@ const txnBadgeClass = {
   Adjustment: "bg-warning/10 text-warning border-warning/20",
   Return:     "bg-destructive/10 text-destructive border-destructive/20",
 };
-
-// ── Sub-components ────────────────────────────────────────────────────────────
 
 function Card({ children, className = "", onClick }) {
   return (
@@ -42,25 +37,73 @@ function SectionCard({ title, icon: Icon, iconClass = "", children }) {
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+function normalizeStock(s) {
+  return {
+    productVariantId: s.ProductVariantID,
+    productName: s.ProductName || "",
+    variantSku: s.SKU || "",
+    qtyOnHand: Number(s.QuantityOnHand) || 0,
+    reorderPoint: Number(s.ReorderPoint) || 0,
+    status: s.status || "In Stock",
+    binLocation: s.BinLocation || "",
+  };
+}
+
+function normalizeTxn(t) {
+  return {
+    id: t.TransactionID,
+    type: t.TransactionType,
+    productName: t.ProductName || "",
+    quantity: Number(t.Quantity) || 0,
+    clerkName: "",
+    timestamp: t.TransactionDate,
+  };
+}
 
 export default function ClerkDashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const warehouseId = user?.warehouseId;
 
-  const warehouseTxns = transactions.filter(
-    (t) => t.warehouseName === CLERK_WAREHOUSE_NAME
-  );
-  const recentTxns = warehouseTxns.slice(0, 5);
+  const [warehouseName, setWarehouseName] = useState("Your Warehouse");
+  const [stocks, setStocks] = useState([]);
+  const [txns, setTxns] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!warehouseId) {
+      setLoading(false);
+      return;
+    }
+    async function load() {
+      try {
+        const [wh, stockData, txnData] = await Promise.all([
+          api.get(`/warehouses/${warehouseId}`),
+          api.get(`/warehouses/${warehouseId}/stock`),
+          api.get("/transactions/mine"),
+        ]);
+        setWarehouseName(wh.Name || "Your Warehouse");
+        setStocks(stockData.map(normalizeStock));
+        setTxns(txnData.map(normalizeTxn));
+      } catch (err) {
+        toast.error("Failed to load dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [warehouseId]);
+
+  const lowStockItems = stocks.filter((s) => s.status === "Low Stock");
+  const totalItems = stocks.reduce((sum, s) => sum + s.qtyOnHand, 0);
+  const recentTxns = txns.slice(0, 5);
 
   function exportInventory(e) {
     e.stopPropagation();
     const data = stocks.map((s) => ({
-      SKU:             s.variantSku,
-      Product:         s.productName,
-      "Qty On Hand":   s.qtyOnHand,
-      "Reorder Point": s.reorderPoint,
-      Status:          s.status,
-      Bin:             s.binLocation,
+      SKU: s.variantSku, Product: s.productName,
+      "Qty On Hand": s.qtyOnHand, "Reorder Point": s.reorderPoint,
+      Status: s.status, Bin: s.binLocation,
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -70,12 +113,9 @@ export default function ClerkDashboard() {
 
   function exportTransactions(e) {
     e.stopPropagation();
-    const data = warehouseTxns.map((t) => ({
-      Type:    t.type,
-      Product: t.productName,
-      Qty:     t.quantity,
-      Clerk:   t.clerkName,
-      Time:    new Date(t.timestamp).toLocaleString(),
+    const data = txns.map((t) => ({
+      Type: t.type, Product: t.productName,
+      Qty: t.quantity, Time: t.timestamp ? new Date(t.timestamp).toLocaleString() : "",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -83,12 +123,28 @@ export default function ClerkDashboard() {
     XLSX.writeFile(wb, "transactions.xlsx");
   }
 
+  if (!warehouseId) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <p className="text-muted-foreground text-sm">No warehouse assigned to your account.</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <p className="text-muted-foreground text-sm">Loading…</p>
+      </div>
+    );
+  }
+
   const stats = [
     {
       label: "Items In Stock",
       value: totalItems.toLocaleString(),
       icon: Package,
-      desc: CLERK_WAREHOUSE_NAME,
+      desc: warehouseName,
       onClick: () => navigate("/clerk/inventory"),
       onExport: exportInventory,
     },
@@ -99,10 +155,10 @@ export default function ClerkDashboard() {
       desc: "Below reorder point",
     },
     {
-      label: "Transactions",
-      value: warehouseTxns.length,
+      label: "My Transactions",
+      value: txns.length,
       icon: ClipboardList,
-      desc: "In your warehouse",
+      desc: "Recorded by you",
       onClick: () => navigate("/clerk/transactions"),
       onExport: exportTransactions,
     },
@@ -136,7 +192,7 @@ export default function ClerkDashboard() {
 
       {/* ── Low-Stock Alerts ── */}
       <SectionCard
-        title={`Low-Stock Alerts — ${CLERK_WAREHOUSE_NAME}`}
+        title={`Low-Stock Alerts — ${warehouseName}`}
         icon={AlertTriangle}
         iconClass="text-warning"
       >
@@ -179,14 +235,13 @@ export default function ClerkDashboard() {
                 <th className="px-5 py-3 text-xs font-medium text-muted-foreground">Type</th>
                 <th className="px-5 py-3 text-xs font-medium text-muted-foreground">Product</th>
                 <th className="px-5 py-3 text-xs font-medium text-muted-foreground text-right">Qty</th>
-                <th className="px-5 py-3 text-xs font-medium text-muted-foreground hidden sm:table-cell">Clerk</th>
                 <th className="px-5 py-3 text-xs font-medium text-muted-foreground hidden md:table-cell">Time</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {recentTxns.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-8 text-center text-muted-foreground">
+                  <td colSpan={4} className="px-5 py-8 text-center text-muted-foreground">
                     No transactions found
                   </td>
                 </tr>
@@ -199,9 +254,8 @@ export default function ClerkDashboard() {
                   <td className="px-5 py-3 font-mono text-right text-foreground">
                     {t.quantity > 0 ? `+${t.quantity}` : t.quantity}
                   </td>
-                  <td className="px-5 py-3 text-muted-foreground hidden sm:table-cell">{t.clerkName}</td>
                   <td className="px-5 py-3 text-muted-foreground text-xs hidden md:table-cell">
-                    {new Date(t.timestamp).toLocaleString()}
+                    {t.timestamp ? new Date(t.timestamp).toLocaleString() : ""}
                   </td>
                 </tr>
               ))}
