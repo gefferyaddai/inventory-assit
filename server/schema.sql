@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS Category (
   PRIMARY KEY (CategoryID)
 );
 
--- 5. Supplier
+-- 5. Supplier --
 CREATE TABLE IF NOT EXISTS Supplier (
   SupplierID   INT          NOT NULL AUTO_INCREMENT,
   CompanyName  VARCHAR(150) NOT NULL,
