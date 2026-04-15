@@ -2,7 +2,12 @@ const pool = require('../config/db');
 
 exports.getAll = async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM Category');
+    const [rows] = await pool.query(
+      `SELECT c.*, COUNT(p.ProductID) as productCount
+       FROM Category c
+       LEFT JOIN Product p ON c.CategoryID = p.CategoryID
+       GROUP BY c.CategoryID`
+    );
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

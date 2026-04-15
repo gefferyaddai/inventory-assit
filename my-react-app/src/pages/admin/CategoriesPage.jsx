@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
@@ -7,24 +7,37 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
-import { categories as initialCategories, products } from "@/data/mockData";
+import { api } from "@/services/api";
 
-// Derive product count per category from products list
-function buildItems(cats) {
-  return cats.map((c) => ({
-    ...c,
-    productCount: products.filter(
-      (p) => p.category.toLowerCase() === c.name.toLowerCase()
-    ).length,
-  }));
+function normalizeCategory(c) {
+  return {
+    id: c.CategoryID,
+    name: c.CategoryName,
+    description: c.Description || "",
+    productCount: Number(c.productCount) || 0,
+  };
 }
 
 export default function CategoriesPage() {
-  const [items, setItems] = useState(() => buildItems(initialCategories));
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [form, setForm] = useState({ name: "", description: "" });
+
+  const fetchCategories = async () => {
+    try {
+      const data = await api.get('/categories');
+      setItems(data.map(normalizeCategory));
+    } catch {
+      toast.error('Failed to load categories');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchCategories(); }, []);
 
   const openAdd = () => {
     setEditing(null);
@@ -38,43 +51,37 @@ export default function CategoriesPage() {
     setFormOpen(true);
   };
 
-  const save = () => {
+  const save = async () => {
     if (!form.name.trim()) {
       toast.error("Category name is required");
       return;
     }
-    if (editing) {
-      setItems((prev) =>
-        prev.map((c) =>
-          c.id === editing.id
-            ? { ...c, name: form.name.trim(), description: form.description.trim() }
-            : c
-        )
-      );
-      toast.success("Category updated");
-    } else {
-      setItems((prev) => [
-        ...prev,
-        {
-          id: `cat-${Date.now()}`,
-          name: form.name.trim(),
-          description: form.description.trim(),
-          productCount: 0,
-        },
-      ]);
-      toast.success("Category added");
+    try {
+      if (editing) {
+        await api.put(`/categories/${editing.id}`, { name: form.name.trim(), description: form.description.trim() });
+        toast.success("Category updated");
+      } else {
+        await api.post('/categories', { name: form.name.trim(), description: form.description.trim() });
+        toast.success("Category added");
+      }
+      setFormOpen(false);
+      fetchCategories();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save category');
     }
-    setFormOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteId) return;
-    setItems((prev) => prev.filter((c) => c.id !== deleteId));
-    toast.success("Category deleted");
-    setDeleteId(null);
+    try {
+      await api.delete(`/categories/${deleteId}`);
+      toast.success("Category deleted");
+      setDeleteId(null);
+      fetchCategories();
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete category');
+    }
   };
-
-  const itemToDelete = items.find((c) => c.id === deleteId);
 
   const exportXLSX = () => {
     const data = items.map((c) => ({
@@ -87,6 +94,8 @@ export default function CategoriesPage() {
     XLSX.utils.book_append_sheet(wb, ws, "Categories");
     XLSX.writeFile(wb, "categories.xlsx");
   };
+
+  const itemToDelete = items.find((c) => c.id === deleteId);
 
   return (
     <div className="space-y-4">
@@ -114,11 +123,14 @@ export default function CategoriesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {items.length === 0 && (
+            {loading && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
-                  No categories yet.
-                </td>
+                <td colSpan={4} className="px-4 py-8 text-center text-gray-400">Loading…</td>
+              </tr>
+            )}
+            {!loading && items.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-center text-gray-400">No categories yet.</td>
               </tr>
             )}
             {items.map((c) => (
@@ -189,9 +201,7 @@ export default function CategoriesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
             <button
               onClick={save}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"

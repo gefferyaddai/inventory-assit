@@ -105,6 +105,25 @@ exports.toggleVariantStatus = async (req, res) => {
   }
 };
 
+exports.toggleStatus = async (req, res) => {
+  const { isActive } = req.body;
+  try {
+    await pool.query('UPDATE Product SET IsActive = ? WHERE ProductID = ?', [isActive, req.params.id]);
+    res.json({ message: 'Product status updated' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.deleteVariant = async (req, res) => {
+  try {
+    await pool.query('DELETE FROM ProductVariant WHERE VariantID = ?', [req.params.vid]);
+    res.json({ message: 'Variant deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.bulkImport = async (req, res) => {
   const { products } = req.body;
   try {
