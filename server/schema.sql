@@ -21,7 +21,19 @@ CREATE TABLE IF NOT EXISTS User (
 );
 
 
--- 2. Admin  (subtype of User)
+-- 2. Warehouse (moved before StockClerk — StockClerk FK depends on it)
+CREATE TABLE IF NOT EXISTS Warehouse (
+  WarehouseID  INT          NOT NULL AUTO_INCREMENT,
+  Name         VARCHAR(150) NOT NULL,
+  Address      VARCHAR(255),
+  Capacity     INT,
+  ManagerName  VARCHAR(100),
+  TaxRegion    VARCHAR(50),
+  PRIMARY KEY (WarehouseID)
+);
+
+
+-- 3. Admin  (subtype of User)
 CREATE TABLE IF NOT EXISTS Admin (
   UserID       INT          NOT NULL,
   AccessLevel  VARCHAR(50),
@@ -31,7 +43,7 @@ CREATE TABLE IF NOT EXISTS Admin (
 );
 
 
--- 3. StockClerk  (subtype of User)
+-- 4. StockClerk  (subtype of User)
 CREATE TABLE IF NOT EXISTS StockClerk (
   UserID         INT  NOT NULL,
   WarehouseID    INT,
@@ -43,7 +55,7 @@ CREATE TABLE IF NOT EXISTS StockClerk (
 );
 
 
--- 4. Category
+-- 5. Category
 CREATE TABLE IF NOT EXISTS Category (
   CategoryID   INT          NOT NULL AUTO_INCREMENT,
   CategoryName VARCHAR(100) NOT NULL,
@@ -51,7 +63,7 @@ CREATE TABLE IF NOT EXISTS Category (
   PRIMARY KEY (CategoryID)
 );
 
--- 5. Supplier --
+-- 6. Supplier
 CREATE TABLE IF NOT EXISTS Supplier (
   SupplierID   INT          NOT NULL AUTO_INCREMENT,
   CompanyName  VARCHAR(150) NOT NULL,
@@ -61,17 +73,6 @@ CREATE TABLE IF NOT EXISTS Supplier (
   Address      TEXT,
   LeadTimeDays INT          NOT NULL DEFAULT 0,
   PRIMARY KEY (SupplierID)
-);
-
--- 6. Warehouse
-CREATE TABLE IF NOT EXISTS Warehouse (
-  WarehouseID  INT          NOT NULL AUTO_INCREMENT,
-  Name         VARCHAR(150) NOT NULL,
-  Address      VARCHAR(255),
-  Capacity     INT,
-  ManagerName  VARCHAR(100),
-  TaxRegion    VARCHAR(50),
-  PRIMARY KEY (WarehouseID)
 );
 
 -- 7. Product

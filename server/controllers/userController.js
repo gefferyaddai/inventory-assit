@@ -26,16 +26,43 @@ exports.getById = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { firstName, lastName, email, password, phone, role } = req.body;
+  const { firstName, lastName, email, password, phone, role, warehouseId } = req.body;
+  const conn = await pool.getConnection();
   try {
+    await conn.beginTransaction();
+
     const hashed = await bcrypt.hash(password, 10);
-    const [result] = await pool.query(
+    const [result] = await conn.query(
       'INSERT INTO User (FirstName, LastName, Email, Password, Phone, Role) VALUES (?, ?, ?, ?, ?, ?)',
       [firstName, lastName, email, hashed, phone, role]
     );
-    res.json({ id: result.insertId, firstName, lastName, email, phone, role });
+    const newId = result.insertId;
+
+    if (role === 'Admin') {
+      await conn.query(
+        'INSERT INTO Admin (UserID, AccessLevel, Department) VALUES (?, ?, ?)',
+        [newId, 'Full', 'Operations']
+      );
+      if (warehouseId) {
+        await conn.query(
+          'INSERT INTO Admin_Warehouse (UserID, WarehouseID, SinceDate) VALUES (?, ?, CURDATE())',
+          [newId, warehouseId]
+        );
+      }
+    } else if (role === 'StockClerk') {
+      await conn.query(
+        'INSERT INTO StockClerk (UserID, WarehouseID, AssignedShift, HireDate) VALUES (?, ?, ?, CURDATE())',
+        [newId, warehouseId || null, 'Morning']
+      );
+    }
+
+    await conn.commit();
+    res.json({ id: newId, firstName, lastName, email, phone, role });
   } catch (err) {
+    await conn.rollback();
     res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
   }
 };
 
