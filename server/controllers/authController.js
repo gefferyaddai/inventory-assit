@@ -5,7 +5,13 @@ const pool = require('../config/db');
 exports.login = async (req, res) => {
   const { email, password } = req.body;
   try {
-    const [rows] = await pool.query('SELECT * FROM User WHERE Email = ?', [email]);
+    const [rows] = await pool.query(
+      `SELECT u.*, sc.WarehouseID as warehouseId
+       FROM User u
+       LEFT JOIN StockClerk sc ON u.UserID = sc.UserID
+       WHERE u.Email = ?`,
+      [email]
+    );
     if (!rows.length) return res.status(401).json({ error: 'Invalid credentials' });
 
     const user = rows[0];
@@ -20,7 +26,13 @@ exports.login = async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.UserID, name: `${user.FirstName} ${user.LastName}`, email: user.Email, role: user.Role },
+      user: {
+        id: user.UserID,
+        name: `${user.FirstName} ${user.LastName}`,
+        email: user.Email,
+        role: user.Role,
+        warehouseId: user.warehouseId || null,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -30,7 +42,10 @@ exports.login = async (req, res) => {
 exports.me = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT UserID, FirstName, LastName, Email, Role FROM User WHERE UserID = ?',
+      `SELECT u.UserID, u.FirstName, u.LastName, u.Email, u.Role, sc.WarehouseID as warehouseId
+       FROM User u
+       LEFT JOIN StockClerk sc ON u.UserID = sc.UserID
+       WHERE u.UserID = ?`,
       [req.user.userId]
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found' });

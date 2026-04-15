@@ -32,7 +32,7 @@ exports.getAll = async (req, res) => {
 exports.getMine = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT it.*, pv.SKU, pv.Size, pv.Color, p.Name as ProductName,
+      `SELECT it.*, pv.SKU, pv.Size, pv.Color, pv.UnitPrice, p.Name as ProductName,
               w.Name as WarehouseName
        FROM InventoryTransaction it
        JOIN ProductVariant pv ON it.ProductVariantID = pv.VariantID
@@ -61,9 +61,14 @@ exports.create = async (req, res) => {
       [req.user.userId, variantId, warehouseId, transactionType, quantity, notes, taxCode, taxRate]
     );
 
-    if (transactionType === 'Receipt') {
+    if (transactionType === 'Receipt' || transactionType === 'Return') {
       await conn.query(
         'UPDATE StoredIn SET QuantityOnHand = QuantityOnHand + ? WHERE ProductVariantID = ? AND WarehouseID = ?',
+        [quantity, variantId, warehouseId]
+      );
+    } else if (transactionType === 'Sale') {
+      await conn.query(
+        'UPDATE StoredIn SET QuantityOnHand = GREATEST(0, QuantityOnHand - ?) WHERE ProductVariantID = ? AND WarehouseID = ?',
         [quantity, variantId, warehouseId]
       );
     }

@@ -57,8 +57,14 @@ exports.remove = async (req, res) => {
 exports.getStock = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT si.*, pv.SKU, pv.Size, pv.Color, pv.UnitPrice, p.ReorderPoint,
-              p.Name as ProductName
+      `SELECT si.ProductVariantID, si.WarehouseID, si.QuantityOnHand, si.BinLocation,
+              pv.SKU, pv.Size, pv.Color, pv.UnitPrice,
+              p.Name as ProductName, p.ReorderPoint, p.MaxStockLevel,
+              CASE
+                WHEN si.QuantityOnHand <= p.ReorderPoint THEN 'Low Stock'
+                WHEN p.MaxStockLevel > 0 AND si.QuantityOnHand >= p.MaxStockLevel THEN 'Overstock'
+                ELSE 'In Stock'
+              END as status
        FROM StoredIn si
        JOIN ProductVariant pv ON si.ProductVariantID = pv.VariantID
        JOIN Product p ON pv.ProductID = p.ProductID

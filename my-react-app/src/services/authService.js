@@ -26,9 +26,10 @@ export async function getMeRequest(token) {
 
   // Normalize DB column names to match the login response shape
   return {
-    id:    me.UserID,
-    name:  `${me.FirstName} ${me.LastName}`,
-    email: me.Email,
-    role:  me.Role,
+    id:          me.UserID,
+    name:        `${me.FirstName} ${me.LastName}`,
+    email:       me.Email,
+    role:        me.Role,
+    warehouseId: me.warehouseId || null,
   };
 }

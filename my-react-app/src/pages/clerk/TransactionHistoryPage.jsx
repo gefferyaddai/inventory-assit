@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Download, ChevronLeft, ChevronRight, Search, X, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import * as XLSX from "xlsx";
-import { clerkTransactions as ALL_TRANSACTIONS } from "@/data/mockData";
+import { api } from "@/services/api";
+import { toast } from "sonner";
 
 const TYPES    = ["All", "Sale", "Receipt", "Adjustment", "Return", "Cancel"];
 const PAGE_SIZE = 8;
@@ -26,13 +27,31 @@ const TYPE_STYLES = {
   Cancel:     "bg-muted text-muted-foreground border-border",
 };
 
-// qty direction: Sale = out (negative display), Receipt = in, Return = in, Adjustment = neutral, Cancel = neutral
 const qtyDisplay = (type, qty) => {
   if (type === "Sale")    return { label: `-${qty}`, cls: "text-destructive" };
   if (type === "Return")  return { label: `+${qty}`, cls: "text-success" };
   if (type === "Receipt") return { label: `+${qty}`, cls: "text-success" };
   return { label: `${qty}`, cls: "text-foreground" };
 };
+
+function normalizeTxn(t) {
+  const dt = new Date(t.TransactionDate);
+  return {
+    id:         `TXN-${t.TransactionID}`,
+    date:       dt.toISOString().slice(0, 10),
+    time:       dt.toTimeString().slice(0, 5),
+    type:       t.TransactionType,
+    product:    t.ProductName || "",
+    sku:        t.SKU || "",
+    qty:        Number(t.Quantity) || 0,
+    unitPrice:  Number(t.UnitPrice) || 0,
+    notes:      t.Notes || "",
+    warehouse:  t.WarehouseName || "",
+    tax:        t.TaxCode
+      ? { code: t.TaxCode, rate: Number(t.TaxRate) || 0, exempt: false }
+      : null,
+  };
+}
 
 function exportToXLSX(rows) {
   const data = rows.map((t) => ({
@@ -98,7 +117,7 @@ function printTxnReceipt(t) {
 </head>
 <body>
   <h1>INVENTORY ASSIST</h1>
-  <p class="sub">Main Warehouse</p>
+  <p class="sub">${t.warehouse || "Warehouse"}</p>
   <div class="divider"></div>
   <p class="meta">Receipt No. <span>${t.id}</span></p>
   <p class="meta">Date &amp; Time <span>${dateStr}</span></p>
@@ -151,15 +170,12 @@ function ReceiptPreviewDialog({ txn, onClose }) {
           <DialogTitle className="text-sm font-semibold">Receipt Preview</DialogTitle>
         </DialogHeader>
 
-        {/* Receipt body */}
         <div className="px-5 py-4 space-y-4 font-mono text-xs">
-          {/* Header */}
           <div className="text-center space-y-0.5 border-b border-dashed border-border pb-3">
             <p className="text-sm font-bold tracking-widest text-foreground">INVENTORY ASSIST</p>
-            <p className="text-muted-foreground">Main Warehouse</p>
+            <p className="text-muted-foreground">{txn.warehouse || "Warehouse"}</p>
           </div>
 
-          {/* Meta */}
           <div className="space-y-1">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Receipt No.</span>
@@ -171,7 +187,6 @@ function ReceiptPreviewDialog({ txn, onClose }) {
             </div>
           </div>
 
-          {/* Item */}
           <div className="border-t border-dashed border-border pt-3">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -193,7 +208,6 @@ function ReceiptPreviewDialog({ txn, onClose }) {
             </div>
           </div>
 
-          {/* Subtotal / Tax / Grand Total */}
           <div className="border-t border-dashed border-border pt-2 space-y-1">
             <div className="flex justify-between text-muted-foreground">
               <span>Subtotal</span>
@@ -225,7 +239,6 @@ function ReceiptPreviewDialog({ txn, onClose }) {
           )}
         </div>
 
-        {/* Action */}
         <div className="px-5 pb-5">
           <Button
             onClick={() => printTxnReceipt(txn)}
@@ -244,12 +257,21 @@ function ReceiptPreviewDialog({ txn, onClose }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TransactionHistoryPage() {
-  const [search,      setSearch]      = useState("");
-  const [dateFrom,    setDateFrom]    = useState("");
-  const [dateTo,      setDateTo]      = useState("");
-  const [typeFilter,  setTypeFilter]  = useState("All");
-  const [page,        setPage]        = useState(1);
-  const [previewTxn,  setPreviewTxn]  = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [search,      setSearch]        = useState("");
+  const [dateFrom,    setDateFrom]      = useState("");
+  const [dateTo,      setDateTo]        = useState("");
+  const [typeFilter,  setTypeFilter]    = useState("All");
+  const [page,        setPage]          = useState(1);
+  const [previewTxn,  setPreviewTxn]    = useState(null);
+
+  useEffect(() => {
+    api.get('/transactions/mine')
+      .then((data) => setTransactions(data.map(normalizeTxn)))
+      .catch(() => toast.error('Failed to load transactions'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const hasFilters = search || dateFrom || dateTo || typeFilter !== "All";
 
@@ -263,24 +285,19 @@ export default function TransactionHistoryPage() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return ALL_TRANSACTIONS.filter((t) => {
+    return transactions.filter((t) => {
       if (q && !t.product.toLowerCase().includes(q) && !t.id.toLowerCase().includes(q) && !t.sku.toLowerCase().includes(q)) return false;
       if (dateFrom && t.date < dateFrom) return false;
       if (dateTo   && t.date > dateTo)   return false;
       if (typeFilter !== "All" && t.type !== typeFilter) return false;
       return true;
     });
-  }, [search, dateFrom, dateTo, typeFilter]);
+  }, [transactions, search, dateFrom, dateTo, typeFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage   = Math.min(page, totalPages);
   const pageRows   = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  function handleFilter(setter) {
-    return (v) => { setter(v); setPage(1); };
-  }
-
-  // totals for the filtered set
   const totalAmount = filtered.reduce((sum, t) => sum + t.unitPrice * t.qty, 0);
 
   return (
@@ -302,7 +319,6 @@ export default function TransactionHistoryPage() {
       <div className="bg-card rounded-xl border border-border p-4">
         <div className="flex flex-wrap gap-3 items-end">
 
-          {/* Search */}
           <div className="space-y-1.5 min-w-[200px] flex-1">
             <Label className="text-xs">Search</Label>
             <div className="relative">
@@ -316,7 +332,6 @@ export default function TransactionHistoryPage() {
             </div>
           </div>
 
-          {/* From date */}
           <div className="space-y-1.5">
             <Label className="text-xs">From</Label>
             <input
@@ -327,7 +342,6 @@ export default function TransactionHistoryPage() {
             />
           </div>
 
-          {/* To date */}
           <div className="space-y-1.5">
             <Label className="text-xs">To</Label>
             <input
@@ -338,10 +352,9 @@ export default function TransactionHistoryPage() {
             />
           </div>
 
-          {/* Type */}
           <div className="space-y-1.5">
             <Label className="text-xs">Type</Label>
-            <Select value={typeFilter} onValueChange={handleFilter(setTypeFilter)}>
+            <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1); }}>
               <SelectTrigger className="h-9 w-36 text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -351,7 +364,6 @@ export default function TransactionHistoryPage() {
             </Select>
           </div>
 
-          {/* Clear */}
           {hasFilters && (
             <button
               onClick={clearFilters}
@@ -367,11 +379,13 @@ export default function TransactionHistoryPage() {
       {/* ── Summary strip ── */}
       <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
         <span>
-          {filtered.length === 0
+          {loading
+            ? "Loading…"
+            : filtered.length === 0
             ? "No transactions match filters"
             : `${filtered.length} transaction${filtered.length !== 1 ? "s" : ""}`}
         </span>
-        {filtered.length > 0 && (
+        {!loading && filtered.length > 0 && (
           <span className="font-mono">
             Total value: <span className="text-foreground font-semibold">${totalAmount.toFixed(2)}</span>
           </span>
@@ -395,9 +409,13 @@ export default function TransactionHistoryPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {pageRows.length === 0 ? (
+            {loading ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                <td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">Loading…</td>
+              </tr>
+            ) : pageRows.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">
                   No transactions match the current filters.
                 </td>
               </tr>
