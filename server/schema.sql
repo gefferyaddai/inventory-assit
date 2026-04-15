@@ -31,19 +31,7 @@ CREATE TABLE IF NOT EXISTS Admin (
 );
 
 
--- 3. StockClerk  (subtype of User)
-CREATE TABLE IF NOT EXISTS StockClerk (
-  UserID         INT  NOT NULL,
-  WarehouseID    INT,
-  AssignedShift  VARCHAR(50),
-  HireDate       DATE,
-  PRIMARY KEY (UserID),
-  FOREIGN KEY (UserID)      REFERENCES User(UserID)           ON DELETE CASCADE,
-  FOREIGN KEY (WarehouseID) REFERENCES Warehouse(WarehouseID) ON DELETE SET NULL
-);
-
-
--- 4. Category
+-- 3. Category
 CREATE TABLE IF NOT EXISTS Category (
   CategoryID   INT          NOT NULL AUTO_INCREMENT,
   CategoryName VARCHAR(100) NOT NULL,
@@ -51,7 +39,7 @@ CREATE TABLE IF NOT EXISTS Category (
   PRIMARY KEY (CategoryID)
 );
 
--- 5. Supplier --
+-- 4. Supplier --
 CREATE TABLE IF NOT EXISTS Supplier (
   SupplierID   INT          NOT NULL AUTO_INCREMENT,
   CompanyName  VARCHAR(150) NOT NULL,
@@ -63,7 +51,7 @@ CREATE TABLE IF NOT EXISTS Supplier (
   PRIMARY KEY (SupplierID)
 );
 
--- 6. Warehouse
+-- 5. Warehouse
 CREATE TABLE IF NOT EXISTS Warehouse (
   WarehouseID  INT          NOT NULL AUTO_INCREMENT,
   Name         VARCHAR(150) NOT NULL,
@@ -72,6 +60,17 @@ CREATE TABLE IF NOT EXISTS Warehouse (
   ManagerName  VARCHAR(100),
   TaxRegion    VARCHAR(50),
   PRIMARY KEY (WarehouseID)
+);
+
+-- 6. StockClerk  (subtype of User)
+CREATE TABLE IF NOT EXISTS StockClerk (
+  UserID         INT  NOT NULL,
+  WarehouseID    INT,
+  AssignedShift  VARCHAR(50),
+  HireDate       DATE,
+  PRIMARY KEY (UserID),
+  FOREIGN KEY (UserID)      REFERENCES User(UserID)           ON DELETE CASCADE,
+  FOREIGN KEY (WarehouseID) REFERENCES Warehouse(WarehouseID) ON DELETE SET NULL
 );
 
 -- 7. Product
