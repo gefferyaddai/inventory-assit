@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS PurchaseOrder (
   OrderDate            DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
   ExpectedDeliveryDate DATE,
   ActualDeliveryDate   DATE,
-  Status               ENUM('Pending','Delivered','Cancelled') NOT NULL DEFAULT 'Pending',
+  Status               ENUM('Pending','Approved','Shipped','Delivered','Cancelled') NOT NULL DEFAULT 'Pending',
   TotalAmount          DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
   UserID               INT            NOT NULL,
   SupplierID           INT            NOT NULL,

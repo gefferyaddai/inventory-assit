@@ -124,6 +124,22 @@ exports.deleteVariant = async (req, res) => {
   }
 };
 
+exports.getAllVariants = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT pv.VariantID as id, pv.SKU as variantSku, pv.Size, pv.Color, pv.UnitPrice,
+              p.ProductID, p.Name as productName
+       FROM ProductVariant pv
+       JOIN Product p ON pv.ProductID = p.ProductID
+       WHERE pv.IsActive = 1
+       ORDER BY p.Name, pv.Color, pv.Size`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.bulkImport = async (req, res) => {
   const { products } = req.body;
   try {

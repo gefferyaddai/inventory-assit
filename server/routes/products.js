@@ -5,6 +5,7 @@ const requireRole = require('../middleware/requireRole');
 const controller = require('../controllers/productController');
 
 router.get('/',                           auth,                       controller.getAll);
+router.get('/variants/all',               auth,                       controller.getAllVariants);
 router.get('/:id',                        auth,                       controller.getById);
 router.post('/',                          auth, requireRole('Admin'), controller.create);
 router.put('/:id',                        auth, requireRole('Admin'), controller.update);

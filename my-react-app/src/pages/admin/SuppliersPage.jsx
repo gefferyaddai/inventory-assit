@@ -1,53 +1,138 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, MoreHorizontal, ArrowLeft, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { suppliers as initialSuppliers, supplierProducts, products, purchaseOrders } from "@/data/mockData";
+import { api } from "@/services/api";
 
 const EMPTY_FORM = { companyName: "", contactName: "", email: "", phone: "", address: "", leadTimeDays: "" };
 
 const poStatusClass = (s) => {
-  if (s === "Pending")  return "bg-yellow-50 text-yellow-700 border-yellow-200";
-  if (s === "Received") return "bg-green-50 text-green-700 border-green-200";
+  if (s === "Pending")   return "bg-yellow-50 text-yellow-700 border-yellow-200";
+  if (s === "Approved")  return "bg-blue-50 text-blue-700 border-blue-200";
+  if (s === "Shipped")   return "bg-purple-50 text-purple-700 border-purple-200";
+  if (s === "Delivered") return "bg-green-50 text-green-700 border-green-200";
   return "bg-gray-50 text-gray-600 border-gray-200";
 };
 
+function normalizeSupplier(s) {
+  return {
+    id:           s.SupplierID,
+    companyName:  s.CompanyName || "",
+    contactName:  s.ContactName || "",
+    email:        s.Email || "",
+    phone:        s.Phone || "",
+    address:      s.Address || "",
+    leadTimeDays: Number(s.LeadTimeDays) || 0,
+  };
+}
+
+function normalizeOrder(o) {
+  return {
+    id:               o.OrderID,
+    supplierId:       o.SupplierID,
+    supplierName:     o.SupplierName || "",
+    orderDate:        o.OrderDate ? new Date(o.OrderDate).toISOString().slice(0, 10) : "",
+    expectedDelivery: o.ExpectedDeliveryDate ? new Date(o.ExpectedDeliveryDate).toISOString().slice(0, 10) : "",
+    status:           o.Status,
+    totalAmount:      Number(o.TotalAmount) || 0,
+  };
+}
+
 export default function SuppliersPage() {
-  const [items, setItems] = useState(initialSuppliers);
+  const [items, setItems]       = useState([]);
+  const [loading, setLoading]   = useState(true);
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
+  const [editing, setEditing]   = useState(null);
   const [viewingId, setViewingId] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm]         = useState(EMPTY_FORM);
+
+  // Detail view state
+  const [detailProducts, setDetailProducts] = useState([]);
+  const [detailOrders, setDetailOrders]     = useState([]);
+  const [detailLoading, setDetailLoading]   = useState(false);
+
+  const fetchSuppliers = async () => {
+    try {
+      const data = await api.get('/suppliers');
+      setItems(data.map(normalizeSupplier));
+    } catch {
+      toast.error('Failed to load suppliers');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchSuppliers(); }, []);
+
+  useEffect(() => {
+    if (!viewingId) { setDetailProducts([]); setDetailOrders([]); return; }
+    setDetailLoading(true);
+    Promise.all([
+      api.get(`/suppliers/${viewingId}/products`),
+      api.get('/orders'),
+    ])
+      .then(([products, orders]) => {
+        setDetailProducts(products.map((p) => ({
+          id:       p.ProductID,
+          sku:      p.SKU || "",
+          name:     p.Name || "",
+          category: p.CategoryName || "",
+        })));
+        setDetailOrders(
+          orders
+            .filter((o) => o.SupplierID === viewingId)
+            .map(normalizeOrder)
+        );
+      })
+      .catch(() => toast.error('Failed to load supplier details'))
+      .finally(() => setDetailLoading(false));
+  }, [viewingId]);
 
   const openAdd = () => { setEditing(null); setForm(EMPTY_FORM); setFormOpen(true); };
   const openEdit = (s) => {
     setEditing(s);
-    setForm({ companyName: s.companyName, contactName: s.contactName, email: s.email, phone: s.phone, address: s.address, leadTimeDays: String(s.leadTimeDays) });
+    setForm({
+      companyName:  s.companyName,
+      contactName:  s.contactName,
+      email:        s.email,
+      phone:        s.phone,
+      address:      s.address,
+      leadTimeDays: String(s.leadTimeDays),
+    });
     setFormOpen(true);
   };
 
-  const save = () => {
+  const save = async () => {
     if (!form.companyName.trim()) { toast.error("Company name is required"); return; }
-    if (editing) {
-      setItems((prev) => prev.map((s) => s.id === editing.id ? { ...s, ...form, leadTimeDays: Number(form.leadTimeDays) } : s));
-      toast.success("Supplier updated");
-    } else {
-      setItems((prev) => [...prev, { id: `sup-${Date.now()}`, ...form, leadTimeDays: Number(form.leadTimeDays) }]);
-      toast.success("Supplier added");
+    try {
+      const payload = {
+        companyName:  form.companyName.trim(),
+        contactName:  form.contactName.trim(),
+        email:        form.email.trim(),
+        phone:        form.phone.trim(),
+        address:      form.address.trim(),
+        leadTimeDays: Number(form.leadTimeDays) || 0,
+      };
+      if (editing) {
+        await api.put(`/suppliers/${editing.id}`, payload);
+        toast.success("Supplier updated");
+      } else {
+        await api.post('/suppliers', payload);
+        toast.success("Supplier added");
+      }
+      setFormOpen(false);
+      fetchSuppliers();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save supplier');
     }
-    setFormOpen(false);
   };
 
   const viewing = viewingId ? items.find((s) => s.id === viewingId) : null;
-  const viewingProductIds = viewingId ? (supplierProducts[viewingId] || []) : [];
-  const viewingProductList = viewingProductIds.map((pid) => products.find((p) => p.id === pid)).filter(Boolean);
-  const viewingOrders = viewingId ? purchaseOrders.filter((po) => po.supplierId === viewingId) : [];
 
   const exportXLSX = () => {
     const data = items.map((s) => ({
@@ -75,11 +160,11 @@ export default function SuppliersPage() {
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
           <h3 className="text-base font-semibold text-gray-900 mb-4">{viewing.companyName}</h3>
           <div className="grid sm:grid-cols-2 gap-3 text-sm">
-            <div><span className="text-gray-400">Contact:</span> <span className="text-gray-700">{viewing.contactName}</span></div>
-            <div><span className="text-gray-400">Email:</span> <span className="text-gray-700">{viewing.email}</span></div>
-            <div><span className="text-gray-400">Phone:</span> <span className="text-gray-700">{viewing.phone}</span></div>
+            <div><span className="text-gray-400">Contact:</span> <span className="text-gray-700">{viewing.contactName || "—"}</span></div>
+            <div><span className="text-gray-400">Email:</span> <span className="text-gray-700">{viewing.email || "—"}</span></div>
+            <div><span className="text-gray-400">Phone:</span> <span className="text-gray-700">{viewing.phone || "—"}</span></div>
             <div><span className="text-gray-400">Lead Time:</span> <span className="text-gray-700">{viewing.leadTimeDays} days</span></div>
-            <div className="sm:col-span-2"><span className="text-gray-400">Address:</span> <span className="text-gray-700">{viewing.address}</span></div>
+            <div className="sm:col-span-2"><span className="text-gray-400">Address:</span> <span className="text-gray-700">{viewing.address || "—"}</span></div>
           </div>
         </div>
 
@@ -97,13 +182,15 @@ export default function SuppliersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {viewingProductList.length === 0 ? (
+              {detailLoading ? (
+                <tr><td colSpan={3} className="px-4 py-6 text-center text-gray-400">Loading…</td></tr>
+              ) : detailProducts.length === 0 ? (
                 <tr><td colSpan={3} className="px-4 py-6 text-center text-gray-400">No products linked</td></tr>
-              ) : viewingProductList.map((p) => (
+              ) : detailProducts.map((p) => (
                 <tr key={p.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-mono text-xs text-gray-600">{p.sku}</td>
                   <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
-                  <td className="hidden sm:table-cell px-4 py-3 text-gray-500">{p.category}</td>
+                  <td className="hidden sm:table-cell px-4 py-3 text-gray-500">{p.category || "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -125,11 +212,13 @@ export default function SuppliersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {viewingOrders.length === 0 ? (
+              {detailLoading ? (
+                <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">Loading…</td></tr>
+              ) : detailOrders.length === 0 ? (
                 <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">No orders</td></tr>
-              ) : viewingOrders.map((po) => (
+              ) : detailOrders.map((po) => (
                 <tr key={po.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono text-xs text-gray-600">{po.id}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-600">#{po.id}</td>
                   <td className="px-4 py-3 text-gray-500">{po.orderDate}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${poStatusClass(po.status)}`}>
@@ -175,15 +264,18 @@ export default function SuppliersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {items.length === 0 && (
+            {loading && (
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+            )}
+            {!loading && items.length === 0 && (
               <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No suppliers yet.</td></tr>
             )}
             {items.map((s) => (
               <tr key={s.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3 font-medium text-gray-900">{s.companyName}</td>
-                <td className="hidden sm:table-cell px-4 py-3 text-gray-500">{s.contactName}</td>
-                <td className="hidden md:table-cell px-4 py-3 text-gray-500">{s.email}</td>
-                <td className="hidden lg:table-cell px-4 py-3 text-gray-500">{s.phone}</td>
+                <td className="hidden sm:table-cell px-4 py-3 text-gray-500">{s.contactName || "—"}</td>
+                <td className="hidden md:table-cell px-4 py-3 text-gray-500">{s.email || "—"}</td>
+                <td className="hidden lg:table-cell px-4 py-3 text-gray-500">{s.phone || "—"}</td>
                 <td className="px-4 py-3 text-right text-gray-700">{s.leadTimeDays}d</td>
                 <td className="px-4 py-3">
                   <DropdownMenu>
