@@ -3,9 +3,13 @@ const pool = require('../config/db');
 exports.getAll = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT p.*, c.CategoryName
+      `SELECT p.*, c.CategoryName,
+              COALESCE(SUM(si.QuantityOnHand), 0) AS TotalQty
        FROM Product p
-       LEFT JOIN Category c ON p.CategoryID = c.CategoryID`
+       LEFT JOIN Category c ON p.CategoryID = c.CategoryID
+       LEFT JOIN ProductVariant pv ON pv.ProductID = p.ProductID
+       LEFT JOIN StoredIn si ON si.ProductVariantID = pv.VariantID
+       GROUP BY p.ProductID, c.CategoryName`
     );
     res.json(rows);
   } catch (err) {
@@ -62,7 +66,14 @@ exports.remove = async (req, res) => {
 
 exports.getVariants = async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM ProductVariant WHERE ProductID = ?', [req.params.id]);
+    const [rows] = await pool.query(
+      `SELECT pv.*, COALESCE(SUM(si.QuantityOnHand), 0) AS TotalQty
+       FROM ProductVariant pv
+       LEFT JOIN StoredIn si ON si.ProductVariantID = pv.VariantID
+       WHERE pv.ProductID = ?
+       GROUP BY pv.VariantID`,
+      [req.params.id]
+    );
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
