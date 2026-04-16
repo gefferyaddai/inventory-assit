@@ -3,9 +3,13 @@ const pool = require('../config/db');
 
 exports.getAll = async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT UserID, FirstName, LastName, Email, Phone, Role, IsActive FROM User'
-    );
+    const [rows] = await pool.query(`
+      SELECT u.UserID, u.FirstName, u.LastName, u.Email, u.Phone, u.Role, u.IsActive,
+             w.Name AS WarehouseName
+      FROM User u
+      LEFT JOIN StockClerk sc ON u.UserID = sc.UserID
+      LEFT JOIN Warehouse w ON sc.WarehouseID = w.WarehouseID
+    `);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

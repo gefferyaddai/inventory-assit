@@ -31,6 +31,7 @@ function normalizeProduct(p) {
     unitOfMeasure: p.UnitOfMeasure || "Each",
     expirationDate: p.ExpirationDate ? p.ExpirationDate.split("T")[0] : "",
     status: p.IsActive ? "Active" : "Inactive",
+    totalQty: Number(p.TotalQty) || 0,
   };
 }
 
@@ -43,6 +44,7 @@ function normalizeVariant(v) {
     unitPrice: v.UnitPrice != null ? Number(v.UnitPrice) : null,
     costPrice: v.CostPrice != null ? Number(v.CostPrice) : null,
     status: v.IsActive ? "Active" : "Inactive",
+    totalQty: Number(v.TotalQty) || 0,
   };
 }
 
@@ -353,6 +355,7 @@ export default function ProductsPage() {
                 <th className="px-4 py-3 text-xs font-medium text-muted-foreground">Name</th>
                 <th className="px-4 py-3 text-xs font-medium text-muted-foreground hidden md:table-cell">Category</th>
                 <th className="px-4 py-3 text-xs font-medium text-muted-foreground text-right">Unit Price</th>
+                <th className="px-4 py-3 text-xs font-medium text-muted-foreground text-right hidden sm:table-cell">Qty on Hand</th>
                 <th className="px-4 py-3 text-xs font-medium text-muted-foreground">Status</th>
                 <th className="w-10 px-3 py-3"></th>
               </tr>
@@ -360,7 +363,7 @@ export default function ProductsPage() {
             <tbody className="divide-y divide-border">
               {loading && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">Loading…</td>
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">Loading…</td>
                 </tr>
               )}
               {!loading && filtered.map((p) => (
@@ -377,6 +380,11 @@ export default function ProductsPage() {
                     <td className="px-4 py-3 font-medium text-foreground">{p.name}</td>
                     <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{p.category}</td>
                     <td className="px-4 py-3 text-right text-foreground">${p.unitPrice.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right hidden sm:table-cell">
+                      <span className={`font-medium ${p.totalQty <= p.reorderPoint && p.totalQty > 0 ? "text-red-500" : p.totalQty === 0 ? "text-gray-400" : "text-foreground"}`}>
+                        {p.totalQty}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <Badge variant="outline" className={statusClass(p.status)}>{p.status}</Badge>
                     </td>
@@ -401,7 +409,7 @@ export default function ProductsPage() {
                   {/* Variants expanded row */}
                   {expandedRows.has(p.id) && (
                     <tr key={`${p.id}-variants`}>
-                      <td colSpan={7} className="bg-muted/50 px-6 py-4">
+                      <td colSpan={8} className="bg-muted/50 px-6 py-4">
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-foreground">Variants</span>
@@ -422,6 +430,7 @@ export default function ProductsPage() {
                                   <th className="py-2 pr-4 text-xs font-medium text-muted-foreground">Color</th>
                                   <th className="py-2 pr-4 text-xs font-medium text-muted-foreground text-right">Unit Price</th>
                                   <th className="py-2 pr-4 text-xs font-medium text-muted-foreground text-right hidden sm:table-cell">Cost Price</th>
+                                  <th className="py-2 pr-4 text-xs font-medium text-muted-foreground text-right">Qty on Hand</th>
                                   <th className="py-2 pr-4 text-xs font-medium text-muted-foreground">Status</th>
                                   <th className="py-2 text-xs font-medium text-muted-foreground"></th>
                                 </tr>
@@ -434,6 +443,11 @@ export default function ProductsPage() {
                                     <td className="py-2 pr-4">{v.color}</td>
                                     <td className="py-2 pr-4 text-right">{v.unitPrice != null ? `$${v.unitPrice.toFixed(2)}` : "—"}</td>
                                     <td className="py-2 pr-4 text-right hidden sm:table-cell">{v.costPrice != null ? `$${v.costPrice.toFixed(2)}` : "—"}</td>
+                                    <td className="py-2 pr-4 text-right">
+                                      <span className={`font-medium ${v.totalQty === 0 ? "text-gray-400" : "text-foreground"}`}>
+                                        {v.totalQty}
+                                      </span>
+                                    </td>
                                     <td className="py-2 pr-4">
                                       <button
                                         onClick={() => toggleVariantStatus(p.id, v.id, v.status)}
@@ -466,7 +480,7 @@ export default function ProductsPage() {
               ))}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">
                     No products match your filters.
                   </td>
                 </tr>
