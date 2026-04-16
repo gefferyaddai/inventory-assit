@@ -2,8 +2,8 @@
 -- G3 Inventory System — Schema
 -- Run this against the `inventoryasset` database
 -- ============================================================
-CREATE DATABASE IF NOT EXISTS inventoryasset;
-USE inventoryasset;
+CREATE DATABASE IF NOT EXISTS InventoryAssist;
+USE InventoryAssist;
 
 
 -- 1. User
