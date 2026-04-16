@@ -35,6 +35,7 @@ function normalizeUser(u) {
     phone: u.Phone || "",
     role: u.Role || "StockClerk",
     isActive: u.IsActive !== 0,
+    warehouse: u.WarehouseName || null,
   };
 }
 
@@ -104,7 +105,7 @@ export default function UserManagementPage() {
           firstName: form.firstName, lastName: form.lastName,
           email: form.email, password: form.password,
           phone: form.phone, role: form.role,
-          warehouseId: form.warehouseId || null,
+          warehouseId: form.role === "StockClerk" ? form.warehouseId || null : null,
         });
         toast.success("User added");
       }
@@ -189,6 +190,7 @@ export default function UserManagementPage() {
               <th className="px-4 py-3 rounded-tl-xl">Name</th>
               <th className="hidden sm:table-cell px-4 py-3">Email</th>
               <th className="hidden md:table-cell px-4 py-3">Phone</th>
+              <th className="hidden lg:table-cell px-4 py-3">Warehouse</th>
               <th className="px-4 py-3">Role</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3 w-10 rounded-tr-xl"></th>
@@ -199,13 +201,14 @@ export default function UserManagementPage() {
               <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
             )}
             {!loading && users.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No users found.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No users found.</td></tr>
             )}
             {!loading && users.map((u) => (
               <tr key={u.id} className={`hover:bg-gray-50 transition-colors ${!u.isActive ? "opacity-60" : ""}`}>
                 <td className="px-4 py-3 font-medium text-gray-900">{u.firstName} {u.lastName}</td>
                 <td className="hidden sm:table-cell px-4 py-3 text-gray-500">{u.email}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-gray-500">{u.phone || "—"}</td>
+                <td className="hidden lg:table-cell px-4 py-3 text-gray-500">{u.warehouse || "—"}</td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${roleClass(u.role)}`}>
                     {u.role}
@@ -299,9 +302,17 @@ export default function UserManagementPage() {
             </div>
             {!editing && (
               <div className="space-y-1.5">
-                <Label>{form.role === "StockClerk" ? "Assigned Warehouse" : "Warehouse"}</Label>
-                <Select value={form.warehouseId} onValueChange={(v) => setForm({ ...form, warehouseId: v })}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Select warehouse…" /></SelectTrigger>
+                <Label className={form.role === "Admin" ? "text-gray-400" : ""}>
+                  Assigned Warehouse
+                </Label>
+                <Select
+                  value={form.warehouseId}
+                  onValueChange={(v) => setForm({ ...form, warehouseId: v })}
+                  disabled={form.role === "Admin"}
+                >
+                  <SelectTrigger className="w-full disabled:opacity-50 disabled:cursor-not-allowed">
+                    <SelectValue placeholder={form.role === "Admin" ? "N/A — Admins manage all warehouses" : "Select warehouse…"} />
+                  </SelectTrigger>
                   <SelectContent>
                     {warehouses.map((w) => (
                       <SelectItem key={w.WarehouseID} value={String(w.WarehouseID)}>
