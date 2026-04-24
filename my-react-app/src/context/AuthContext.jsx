@@ -43,6 +43,7 @@ export function AuthProvider({ children }) {
   function logout() {
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
+    // revoke jwt here if implemented
     navigate('/login');
   }
 
