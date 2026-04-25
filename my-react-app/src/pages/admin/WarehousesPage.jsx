@@ -104,8 +104,14 @@ export default function WarehousesPage() {
   const [editing, setEditing]       = useState(null);
   const [viewingId, setViewingId]   = useState(null);
   const [form, setForm]             = useState(EMPTY_FORM);
-  const [stockItems, setStockItems] = useState([]);
-  const [stockLoading, setStockLoading] = useState(false);
+  const [stockItems, setStockItems]       = useState([]);
+  const [stockLoading, setStockLoading]   = useState(false);
+  const [stockSearch, setStockSearch]     = useState("");
+  const [stockFilter, setStockFilter]     = useState("all");
+  const [assignedAdmins, setAssignedAdmins] = useState([]);
+  const [adminsLoading, setAdminsLoading]   = useState(false);
+  const [allAdmins, setAllAdmins]           = useState([]);
+  const [assignAdminId, setAssignAdminId]   = useState("");
 
   const fetchWarehouses = async () => {
     try {
@@ -121,13 +127,39 @@ export default function WarehousesPage() {
   useEffect(() => { fetchWarehouses(); }, []);
 
   useEffect(() => {
-    if (!viewingId) { setStockItems([]); return; }
+    if (!viewingId) {
+      setStockItems([]);
+      setAssignedAdmins([]);
+      setStockSearch("");
+      setStockFilter("all");
+      return;
+    }
     setStockLoading(true);
+    setAdminsLoading(true);
     api.get(`/warehouses/${viewingId}/stock`)
       .then((data) => setStockItems(data.map(normalizeStock)))
       .catch(() => toast.error('Failed to load stock'))
       .finally(() => setStockLoading(false));
+    api.get(`/warehouses/${viewingId}/admins`)
+      .then((data) => setAssignedAdmins(data.map((a) => ({
+        id:        a.UserID,
+        name:      `${a.FirstName} ${a.LastName}`,
+        email:     a.Email || "",
+        sinceDate: a.SinceDate ? new Date(a.SinceDate).toISOString().slice(0, 10) : "",
+      }))))
+      .catch(() => toast.error('Failed to load assigned admins'))
+      .finally(() => setAdminsLoading(false));
   }, [viewingId]);
+
+  useEffect(() => {
+    api.get('/users')
+      .then((data) => setAllAdmins(
+        data
+          .filter((u) => u.Role === 'Admin' && u.IsActive !== 0)
+          .map((u) => ({ id: u.UserID, name: `${u.FirstName} ${u.LastName}` }))
+      ))
+      .catch(() => {});
+  }, []);
 
   const openAdd = () => { setEditing(null); setForm(EMPTY_FORM); setFormOpen(true); };
   const openEdit = (w) => {
@@ -166,6 +198,34 @@ export default function WarehousesPage() {
     }
   };
 
+  const handleAssignAdmin = async () => {
+    if (!assignAdminId) return;
+    try {
+      await api.post(`/warehouses/${viewingId}/admins`, { adminId: Number(assignAdminId) });
+      toast.success("Admin assigned");
+      setAssignAdminId("");
+      const data = await api.get(`/warehouses/${viewingId}/admins`);
+      setAssignedAdmins(data.map((a) => ({
+        id:        a.UserID,
+        name:      `${a.FirstName} ${a.LastName}`,
+        email:     a.Email || "",
+        sinceDate: a.SinceDate ? new Date(a.SinceDate).toISOString().slice(0, 10) : "",
+      })));
+    } catch (err) {
+      toast.error(err.message || 'Failed to assign admin');
+    }
+  };
+
+  const handleRemoveAdmin = async (adminId) => {
+    try {
+      await api.delete(`/warehouses/${viewingId}/admins/${adminId}`);
+      toast.success("Admin removed");
+      setAssignedAdmins((prev) => prev.filter((a) => a.id !== adminId));
+    } catch (err) {
+      toast.error(err.message || 'Failed to remove admin');
+    }
+  };
+
   const viewing = viewingId ? items.find((w) => w.id === viewingId) : null;
   const viewingTaxRegion = viewing?.taxRegion
     ? TAX_REGIONS.find((r) => r.provinceCode === viewing.taxRegion)
@@ -187,6 +247,27 @@ export default function WarehousesPage() {
 
   // ── Detail view ─────────────────────────────────────────────────────────────
   if (viewing) {
+    const assignableAdmins = allAdmins.filter(
+      (a) => !assignedAdmins.some((aa) => aa.id === a.id)
+    );
+
+    const filteredStock = stockItems.filter((s) => {
+      const matchesSearch =
+        !stockSearch ||
+        s.productName.toLowerCase().includes(stockSearch.toLowerCase()) ||
+        s.variantSku.toLowerCase().includes(stockSearch.toLowerCase());
+      const matchesFilter =
+        stockFilter === "all" || s.status === stockFilter;
+      return matchesSearch && matchesFilter;
+    });
+
+    const STATUS_FILTERS = [
+      { value: "all",       label: "All" },
+      { value: "In Stock",  label: "In Stock" },
+      { value: "Low Stock", label: "Low Stock" },
+      { value: "Overstock", label: "Overstock" },
+    ];
+
     return (
       <div className="space-y-4">
         <button
@@ -198,7 +279,15 @@ export default function WarehousesPage() {
 
         {/* Info card */}
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">{viewing.name}</h3>
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <h3 className="text-base font-semibold text-gray-900">{viewing.name}</h3>
+            <button
+              onClick={() => openEdit(viewing)}
+              className="shrink-0 rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Edit
+            </button>
+          </div>
           <div className="grid sm:grid-cols-2 gap-3 text-sm">
             <div><span className="text-gray-400">Address:</span> <span className="text-gray-700">{viewing.address || "—"}</span></div>
             <div><span className="text-gray-400">Capacity:</span> <span className="text-gray-700">{(viewing.capacity || 0).toLocaleString()} units</span></div>
@@ -217,10 +306,91 @@ export default function WarehousesPage() {
           </div>
         </div>
 
-        {/* Stock levels */}
+        {/* Assigned admins */}
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="px-4 py-3 border-b border-gray-100">
+            <h4 className="text-sm font-semibold text-gray-800">Assigned Admins</h4>
+          </div>
+          <div className="p-4 space-y-3">
+            {adminsLoading ? (
+              <p className="text-sm text-gray-400">Loading…</p>
+            ) : assignedAdmins.length === 0 ? (
+              <p className="text-sm text-gray-400">No admins assigned to this warehouse.</p>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {assignedAdmins.map((a) => (
+                  <li key={a.id} className="flex items-center justify-between py-2.5">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{a.name}</p>
+                      <p className="text-xs text-gray-400">{a.email} · Since {a.sinceDate || "—"}</p>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveAdmin(a.id)}
+                      className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* Assign admin row */}
+            {assignableAdmins.length > 0 && (
+              <div className="flex items-center gap-2 pt-1">
+                <select
+                  value={assignAdminId}
+                  onChange={(e) => setAssignAdminId(e.target.value)}
+                  className="flex-1 rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="">Select admin to assign…</option>
+                  {assignableAdmins.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleAssignAdmin}
+                  disabled={!assignAdminId}
+                  className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Assign
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Stock levels */}
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="px-4 py-3 border-b border-gray-100 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
             <h4 className="text-sm font-semibold text-gray-800">Stock Levels</h4>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search SKU or product…"
+                  value={stockSearch}
+                  onChange={(e) => setStockSearch(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 text-sm rounded-md border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full sm:w-48"
+                />
+              </div>
+              <div className="flex rounded-md border border-gray-200 overflow-hidden">
+                {STATUS_FILTERS.map((f) => (
+                  <button
+                    key={f.value}
+                    onClick={() => setStockFilter(f.value)}
+                    className={`px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                      stockFilter === f.value
+                        ? "bg-blue-600 text-white"
+                        : "bg-white text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <table className="w-full text-sm">
             <thead>
@@ -228,18 +398,21 @@ export default function WarehousesPage() {
                 <th className="px-4 py-3">SKU</th>
                 <th className="px-4 py-3">Product</th>
                 <th className="px-4 py-3 text-right">Qty on Hand</th>
+                <th className="hidden lg:table-cell px-4 py-3 text-right">Reorder Pt.</th>
                 <th className="hidden md:table-cell px-4 py-3">Bin</th>
                 <th className="px-4 py-3">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {stockLoading && (
-                <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">Loading…</td></tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">Loading…</td></tr>
               )}
-              {!stockLoading && stockItems.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">No stock records</td></tr>
+              {!stockLoading && filteredStock.length === 0 && (
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">
+                  {stockItems.length === 0 ? "No stock records" : "No results match your filter"}
+                </td></tr>
               )}
-              {stockItems.map((s) => (
+              {filteredStock.map((s) => (
                 <tr key={s.productVariantId} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-mono text-xs text-gray-600">{s.variantSku}</td>
                   <td className="px-4 py-3 font-medium text-gray-900">
@@ -249,6 +422,7 @@ export default function WarehousesPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-gray-700">{s.qtyOnHand}</td>
+                  <td className="hidden lg:table-cell px-4 py-3 text-right font-mono text-gray-400">{s.reorderPoint}</td>
                   <td className="hidden md:table-cell px-4 py-3 text-gray-500">{s.binLocation || "—"}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${stockStatusClass(s.status)}`}>

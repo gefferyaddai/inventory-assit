@@ -54,6 +54,47 @@ exports.remove = async (req, res) => {
   }
 };
 
+exports.getAdmins = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.UserID, u.FirstName, u.LastName, u.Email, m.SinceDate
+       FROM Admin_Warehouse m
+       JOIN User u ON m.UserID = u.UserID
+       WHERE m.WarehouseID = ?
+       ORDER BY m.SinceDate DESC`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.assignAdmin = async (req, res) => {
+  const { adminId } = req.body;
+  try {
+    await pool.query(
+      'INSERT IGNORE INTO Admin_Warehouse (UserID, WarehouseID, SinceDate) VALUES (?, ?, CURDATE())',
+      [adminId, req.params.id]
+    );
+    res.json({ message: 'Admin assigned' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.removeAdmin = async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM Admin_Warehouse WHERE UserID = ? AND WarehouseID = ?',
+      [req.params.adminId, req.params.id]
+    );
+    res.json({ message: 'Admin removed' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.getStock = async (req, res) => {
   try {
     const [rows] = await pool.query(

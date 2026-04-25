@@ -78,10 +78,12 @@ export default function SuppliersPage() {
     ])
       .then(([products, orders]) => {
         setDetailProducts(products.map((p) => ({
-          id:       p.ProductID,
-          sku:      p.SKU || "",
-          name:     p.Name || "",
-          category: p.CategoryName || "",
+          id:                p.ProductID,
+          sku:               p.SKU || "",
+          name:              p.Name || "",
+          category:          p.CategoryName || "",
+          preferred:         !!p.PreferredSupplier,
+          supplierProductCode: p.SupplierProductCode || "",
         })));
         setDetailOrders(
           orders
@@ -179,18 +181,28 @@ export default function SuppliersPage() {
                 <th className="px-4 py-3">SKU</th>
                 <th className="px-4 py-3">Name</th>
                 <th className="hidden sm:table-cell px-4 py-3">Category</th>
+                <th className="hidden md:table-cell px-4 py-3">Supplier Code</th>
+                <th className="px-4 py-3 text-center">Preferred</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {detailLoading ? (
-                <tr><td colSpan={3} className="px-4 py-6 text-center text-gray-400">Loading…</td></tr>
+                <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">Loading…</td></tr>
               ) : detailProducts.length === 0 ? (
-                <tr><td colSpan={3} className="px-4 py-6 text-center text-gray-400">No products linked</td></tr>
+                <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">No products linked</td></tr>
               ) : detailProducts.map((p) => (
                 <tr key={p.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-mono text-xs text-gray-600">{p.sku}</td>
                   <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
                   <td className="hidden sm:table-cell px-4 py-3 text-gray-500">{p.category || "—"}</td>
+                  <td className="hidden md:table-cell px-4 py-3 font-mono text-xs text-gray-500">{p.supplierProductCode || "—"}</td>
+                  <td className="px-4 py-3 text-center">
+                    {p.preferred ? (
+                      <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 border-green-200">Yes</span>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

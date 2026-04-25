@@ -17,9 +17,11 @@ exports.getAll = async (req, res) => {
 exports.getById = async (req, res) => {
   try {
     const [order] = await pool.query(
-      `SELECT po.*, s.CompanyName as SupplierName
+      `SELECT po.*, s.CompanyName as SupplierName,
+              CONCAT(u.FirstName, ' ', u.LastName) as PlacedByName
        FROM PurchaseOrder po
        JOIN Supplier s ON po.SupplierID = s.SupplierID
+       LEFT JOIN User u ON po.UserID = u.UserID
        WHERE po.OrderID = ?`,
       [req.params.id]
     );

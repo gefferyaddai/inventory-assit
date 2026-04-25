@@ -47,7 +47,8 @@ exports.remove = async (req, res) => {
 exports.getProducts = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT p.ProductID, p.SKU, p.Name, c.CategoryName
+      `SELECT p.ProductID, p.SKU, p.Name, c.CategoryName,
+              ps.PreferredSupplier, ps.SupplierProductCode
        FROM Product p
        JOIN Product_Supplier ps ON p.ProductID = ps.ProductID
        LEFT JOIN Category c ON p.CategoryID = c.CategoryID

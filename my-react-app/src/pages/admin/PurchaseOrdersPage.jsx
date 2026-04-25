@@ -25,6 +25,7 @@ function normalizeOrder(o, items = null) {
     id:               o.OrderID,
     supplierId:       o.SupplierID,
     supplierName:     o.SupplierName || "",
+    placedByName:     o.PlacedByName || "",
     warehouseId:      o.WarehouseID,
     orderDate:        o.OrderDate ? new Date(o.OrderDate).toISOString().slice(0, 10) : "",
     expectedDelivery: o.ExpectedDeliveryDate ? new Date(o.ExpectedDeliveryDate).toISOString().slice(0, 10) : "",
@@ -206,8 +207,9 @@ export default function PurchaseOrdersPage() {
             <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5 space-y-5">
               <h3 className="text-base font-semibold text-gray-900">Order #{viewing.id}</h3>
 
-              <div className="grid sm:grid-cols-3 gap-3 text-sm">
+              <div className="grid sm:grid-cols-2 gap-3 text-sm">
                 <div><span className="text-gray-400">Supplier:</span> <span className="text-gray-700">{viewing.supplierName}</span></div>
+                <div><span className="text-gray-400">Placed By:</span> <span className="text-gray-700">{viewing.placedByName || "—"}</span></div>
                 <div><span className="text-gray-400">Order Date:</span> <span className="text-gray-700">{viewing.orderDate}</span></div>
                 <div><span className="text-gray-400">Expected:</span> <span className="text-gray-700">{viewing.expectedDelivery || "—"}</span></div>
               </div>
